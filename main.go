@@ -6,9 +6,6 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/robfig/cron"
 	"golang.org/x/net/context"
-	"io"
-	"log"
-	"os"
 	"strings"
 	"time"
 )
@@ -40,15 +37,12 @@ func main() {
 		panic(err)
 	}
 
-	c := cron.New()
-
 	jobs := []ContainerStartJob{}
 
 	for _, container := range containers {
 		if val, ok := container.Labels["cron.schedule"]; ok {
 			jobName := strings.Join(container.Names, "/")
-			fmt.Println("Scheduling ", jobName, "(", val, ")")
-			c.AddJob(val, ContainerStartJob{
+			jobs = append(jobs, ContainerStartJob{
 				Schedule:    val,
 				Client:      cli,
 				ContainerID: container.ID,
@@ -56,6 +50,13 @@ func main() {
 				Name:        jobName,
 			})
 		}
+	}
+
+	c := cron.New()
+
+	for _, job := range jobs {
+		fmt.Println("Scheduling ", job.Name, "(", job.Schedule, ")")
+		c.AddJob(job.Schedule, job)
 	}
 
 	// Start the cron job threads
