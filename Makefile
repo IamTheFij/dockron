@@ -1,3 +1,5 @@
+DOCKER_TAG ?= dsched-dev
+
 .PHONY: default
 default: build
 
@@ -32,3 +34,11 @@ clean-vendor:
 .PHONY: dep-update
 dep-update:
 	dep ensure -update
+
+.PHONY: docker-build
+docker-build:
+	docker build -t $(DOCKER_TAG) .
+
+.PHONY: docker-run
+docker-run:
+	docker run --rm -v /var/run/docker.sock:/var/run/docker.sock --name $(DOCKER_TAG)-run $(DOCKER_TAG)
