@@ -89,8 +89,6 @@ func main() {
 
 	// Start the loop
 	for {
-		fmt.Println("Tick...")
-
 		// HACK: This is risky as it could fall on the same interval as a task and that task would get skipped
 		// It would be best to manage a ContainerID to Job mapping and then remove entries that are missing
 		// in the new list and add new entries. However, cron does not support this yet.
