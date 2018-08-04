@@ -1,4 +1,4 @@
-DOCKER_TAG ?= dsched-dev
+DOCKER_TAG ?= dockron-dev
 
 .PHONY: default
 default: build
@@ -13,17 +13,17 @@ run: vendor
 	go run *.go
 
 # Output target
-dsched: vendor
-	go build -o dsched
+dockron: vendor
+	go build -o dockron
 
 # Alias for building
 .PHONY: build
-build: dsched
+build: dockron
 
 # Cleans all build artifacts
 .PHONY: clean
 clean:
-	rm dsched
+	rm dockron
 
 # Cleans vendor directory
 .PHONY: clean-vendor
