@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
@@ -11,10 +12,10 @@ import (
 )
 
 // WatchInterval is the duration we should sleep until polling Docker
-var WatchInterval = (5 * time.Second)
+var DefaultWatchInterval = (1 * time.Minute)
 
 // SchedLabel is the string label to search for cron expressions
-var SchedLabel = "cron.schedule"
+var SchedLabel = "dockron.schedule"
 
 // ContainerStartJob represents a scheduled container task
 // It contains a reference to a client, the schedule to run on, and the
@@ -78,6 +79,11 @@ func main() {
 		panic(err)
 	}
 
+	// Read interval for polling Docker
+	var watchInterval time.Duration
+	flag.DurationVar(&watchInterval, "watch", DefaultWatchInterval, "Interval used to poll Docker for changes")
+	flag.Parse()
+
 	// Create a Cron
 	c := cron.New()
 
@@ -99,6 +105,6 @@ func main() {
 		c.Start()
 
 		// Sleep until the next query time
-		time.Sleep(WatchInterval)
+		time.Sleep(watchInterval)
 	}
 }
