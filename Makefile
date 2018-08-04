@@ -39,6 +39,10 @@ dep-update:
 docker-build:
 	docker build -t $(DOCKER_TAG) .
 
+.PHONY: docker-build-arm
+docker-build-arm:
+	docker build --build-arg repo_arch=arm32v7/ -t $(DOCKER_TAG)-arm32v7 .
+
 .PHONY: docker-run
 docker-run:
 	docker run --rm -v /var/run/docker.sock:/var/run/docker.sock --name $(DOCKER_TAG)-run $(DOCKER_TAG)
