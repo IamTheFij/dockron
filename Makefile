@@ -41,7 +41,7 @@ docker-build:
 
 .PHONY: docker-build-arm
 docker-build-arm:
-	docker build --build-arg repo_arch=arm32v7/ -t $(DOCKER_TAG)-arm32v7 .
+	docker build -t $(DOCKER_TAG)-arm32v7 ./Dockerfile.arm32v7
 
 .PHONY: docker-run
 docker-run:
