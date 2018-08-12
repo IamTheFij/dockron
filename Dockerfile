@@ -9,7 +9,7 @@ RUN dep ensure --vendor-only
 COPY ./main.go /go/src/app/
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix nocgo -o dockron .
 
-FROM alpine:latest
+FROM busybox:latest
 WORKDIR /root/
 COPY --from=builder /go/src/app/dockron .
 
