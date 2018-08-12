@@ -1,0 +1,16 @@
+platform: ${platform}
+
+pipeline:
+  build:
+    image: plugins/docker
+    repo: iamthefij/dockron
+    secrets:
+      - docker_username
+      - docker_password
+    tag:
+      - $platform
+
+matrix:
+  include:
+    - platform: linux/amd64
+    - platform: linux/arm
