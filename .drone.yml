@@ -1,0 +1,28 @@
+platform: ${platform}
+
+workspace:
+  base: /go
+
+pipeline:
+  build:
+    image: golang:1.10
+    commands:
+      - go version
+      - go env
+      - go get -u github.com/golang/dep/cmd/dep
+      - make build
+  # publish:
+  #   image: plugins/docker:${docker_tag}
+  #   repo: iamthefij/dockron
+  #   secrets:
+  #     - docker_username
+  #     - docker_password
+  #   tag:
+  #     - ${docker_tag}
+
+matrix:
+  include:
+    - platform: linux/amd64
+      docker_tag: latest
+    # - platform: linux/arm
+    #   docker_tag: linux-arm
