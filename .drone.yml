@@ -1,5 +1,4 @@
 platform: ${platform}
-# force
 
 pipeline:
   build:
