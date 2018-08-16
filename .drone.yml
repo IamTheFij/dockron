@@ -2,7 +2,7 @@ platform: ${platform}
 
 pipeline:
   build:
-    image: plugins/docker
+    image: plugins/docker:${docker_tag}
     repo: iamthefij/dockron
     secrets:
       - docker_username
@@ -13,4 +13,6 @@ pipeline:
 matrix:
   include:
     - platform: linux/amd64
+      docker_tag: latest
     - platform: linux/arm
+      docker_tag: linux-arm
