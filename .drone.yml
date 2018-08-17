@@ -8,7 +8,7 @@ pipeline:
       - docker_username
       - docker_password
     tag:
-      - $platform
+      - ${docker_tag}
 
 matrix:
   include:
