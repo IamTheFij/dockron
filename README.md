@@ -1,6 +1,6 @@
 # Dockron
 
-A Dead Simple Docker Cron Scheduler
+Simple scheduling for short-running Docker containers
 
 ## Usage
 
