@@ -11,14 +11,14 @@ pipeline:
       - go env
       - go get -u github.com/golang/dep/cmd/dep
       - make build
-  publish:
-    image: plugins/docker:${docker_tag}
-    # repo: iamthefij/dockron
-    secrets:
-      - docker_username
-      - docker_password
-    tag:
-      - ${docker_tag}
+  # publish:
+  #   image: plugins/docker:${docker_tag}
+  #   repo: iamthefij/dockron
+  #   secrets:
+  #     - docker_username
+  #     - docker_password
+  #   tag:
+  #     - ${docker_tag}
 
 matrix:
   include:
