@@ -5,8 +5,8 @@ pipeline:
     image: golang:1.10
     commands:
       - go get -u github.com/golang/dep/cmd/dep
-      - make build
-
+      - go build
+      # - make build
   publish:
     image: plugins/docker:${docker_tag}
     # repo: iamthefij/dockron
