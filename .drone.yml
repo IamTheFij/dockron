@@ -5,6 +5,8 @@ pipeline:
     image: golang:1.10
     pull: true
     commands:
+      - go version
+      - go env
       - go get -u github.com/golang/dep/cmd/dep
       # - dep ensure -vendor-only
       - make build
