@@ -20,13 +20,17 @@ trigger:
   event:
     - push
     - tag
+  refs:
+    - refs/multi-arch
+    - refs/heads/master
+    - refs/tags/v*
 
 steps:
 
   - name: build
     image: plugins/docker
     settings:
-      repo: iamthefij/multiarch-pipeline-test
+      repo: iamthefij/dockron
       auto_tag: true
       auto_tag_suffix: linux-amd64
       username:
@@ -42,13 +46,17 @@ trigger:
   event:
     - push
     - tag
+  refs:
+    - refs/multi-arch
+    - refs/heads/master
+    - refs/tags/v*
 
 steps:
 
   - name: build
     image: plugins/docker
     settings:
-      repo: iamthefij/multiarch-pipeline-test
+      repo: iamthefij/dockron
       auto_tag: true
       auto_tag_suffix: linux-arm
       username:
@@ -67,13 +75,17 @@ trigger:
   event:
     - push
     - tag
+  refs:
+    - refs/multi-arch
+    - refs/heads/master
+    - refs/tags/v*
 
 steps:
 
   - name: build
     image: plugins/docker
     settings:
-      repo: iamthefij/multiarch-pipeline-test
+      repo: iamthefij/dockron
       auto_tag: true
       auto_tag_suffix: linux-arm64
       username:
