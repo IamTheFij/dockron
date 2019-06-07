@@ -1,28 +1,87 @@
-platform: ${platform}
+kind: pipeline
+name: test
 
 workspace:
-  base: /go
+  base: /go/src/dockron
 
-pipeline:
-  build:
-    image: golang:1.10
+steps:
+  - name: build
+    image: golang:1.11
     commands:
-      - go version
-      - go env
       - go get -u github.com/golang/dep/cmd/dep
       - make build
-  # publish:
-  #   image: plugins/docker:${docker_tag}
-  #   repo: iamthefij/dockron
-  #   secrets:
-  #     - docker_username
-  #     - docker_password
-  #   tag:
-  #     - ${docker_tag}
 
-matrix:
-  include:
-    - platform: linux/amd64
-      docker_tag: latest
-    # - platform: linux/arm
-    #   docker_tag: linux-arm
+---
+kind: pipeline
+name: publish
+
+depends_on:
+  - test
+
+trigger:
+  event:
+    - push
+    - tag
+  refs:
+    - refs/heads/master
+    - refs/tags/v*
+
+workspace:
+  base: /go/src/dockron
+
+steps:
+  - name: build
+    image: golang:1.11
+    commands:
+      - go get -u github.com/golang/dep/cmd/dep
+      - make build-all-static
+
+  - name: push image - arm
+    image: plugins/docker
+    settings:
+      repo: iamthefij/dockron
+      auto_tag: true
+      auto_tag_suffix: linux-arm
+      username:
+        from_secret: docker_username
+      password:
+        from_secret: docker_password
+      build_args:
+        - ARCH=arm
+        - REPO=arm32v6
+
+  - name: push image - arm64
+    image: plugins/docker
+    settings:
+      repo: iamthefij/dockron
+      auto_tag: true
+      auto_tag_suffix: linux-arm64
+      username:
+        from_secret: docker_username
+      password:
+        from_secret: docker_password
+      build_args:
+        - ARCH=arm
+        - REPO=arm32v6
+
+  - name: push image - amd64
+    image: plugins/docker
+    settings:
+      repo: iamthefij/dockron
+      auto_tag: true
+      auto_tag_suffix: linux-amd64
+      username:
+        from_secret: docker_username
+      password:
+        from_secret: docker_password
+
+  - name: publish manifest
+    image: plugins/manifest
+    settings:
+      spec: manifest.tmpl
+      auto_tag: true
+      ignore_missing: true
+      username:
+        from_secret: docker_username
+      password:
+        from_secret: docker_password
