@@ -1,27 +1,30 @@
-# kind: pipeline
-# name: build
-#
-# workspace:
-#   base: /go
-#
-# steps:
-#   - name: build
-#     image: golang:1.11
-#     commands:
-#       - go version
-#       - go env
-#       - go get -u github.com/golang/dep/cmd/dep
-#       - make build
+kind: pipeline
+name: test
 
+workspace:
+  base: /go
+
+steps:
+  - name: build
+    image: golang:1.11
+    commands:
+      - go version
+      - go env
+      - go get -u github.com/golang/dep/cmd/dep
+      - make build
+
+---
 kind: pipeline
 name: linux-amd64
+
+depends_on:
+  - test
 
 trigger:
   event:
     - push
     - tag
   refs:
-    - refs/multi-arch
     - refs/heads/master
     - refs/tags/v*
 
@@ -31,7 +34,8 @@ steps:
     image: plugins/docker
     settings:
       repo: iamthefij/dockron
-      tags: linux-amd64
+      auto_tag: true
+      auto_tag_suffix: linux-amd64
       username:
         from_secret: docker_username
       password:
@@ -41,12 +45,14 @@ steps:
 kind: pipeline
 name: linux-arm
 
+depends_on:
+  - test
+
 trigger:
   event:
     - push
     - tag
   refs:
-    - refs/multi-arch
     - refs/heads/master
     - refs/tags/v*
 
@@ -56,7 +62,8 @@ steps:
     image: plugins/docker
     settings:
       repo: iamthefij/dockron
-      tags: linux-arm
+      auto_tag: true
+      auto_tag_suffix: linux-arm
       username:
         from_secret: docker_username
       password:
@@ -69,12 +76,14 @@ steps:
 kind: pipeline
 name: linux-arm64
 
+depends_on:
+  - test
+
 trigger:
   event:
     - push
     - tag
   refs:
-    - refs/multi-arch
     - refs/heads/master
     - refs/tags/v*
 
@@ -84,7 +93,8 @@ steps:
     image: plugins/docker
     settings:
       repo: iamthefij/dockron
-      tags: linux-arm64
+      auto_tag: true
+      auto_tag_suffix: linux-arm64
       username:
         from_secret: docker_username
       password:
@@ -93,32 +103,32 @@ steps:
         - ARCH=arm64
         - REPO=arm64v8
 
-# ---
-# kind: pipeline
-# name: manifest
-#
-# depends_on:
-#   - linux-amd64
-#   - linux-arm
-#   - linux-arm64
-#
-# trigger:
-#   event:
-#     - push
-#     - tag
-#   ref:
-#     - refs/heads/master
-#     - refs/tags/v*
-#
-# steps:
-#   - name: publish manifest
-#     image: plugins/manifest
-#     settings:
-#       spec: manifest.tmpl
-#       auto_tag: true
-#       ignore_missing: true
-#       username:
-#         from_secret: docker_username
-#       password:
-#         from_secret: docker_password
-#
+---
+kind: pipeline
+name: manifest
+
+depends_on:
+  - linux-amd64
+  - linux-arm
+  - linux-arm64
+
+trigger:
+  event:
+    - push
+    - tag
+  ref:
+    - refs/heads/master
+    - refs/tags/v*
+
+steps:
+  - name: publish manifest
+    image: plugins/manifest
+    settings:
+      spec: manifest.tmpl
+      auto_tag: true
+      ignore_missing: true
+      username:
+        from_secret: docker_username
+      password:
+        from_secret: docker_password
+
