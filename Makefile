@@ -20,6 +20,18 @@ dockron: vendor
 .PHONY: build
 build: dockron
 
+dockron-linux-amd64: vendor
+	GOARCH=amd64 CGO_ENABLED=0 GOOS=linux go build -a -installsuffix nocgo -o dockron-linux-amd64
+
+dockron-linux-arm: vendor
+	GOARCH=arm CGO_ENABLED=0 GOOS=linux go build -a -installsuffix nocgo -o dockron-linux-arm
+
+dockron-linux-arm64: vendor
+	GOARCH=arm64 CGO_ENABLED=0 GOOS=linux go build -a -installsuffix nocgo -o dockron-linux-arm64
+
+.PHONY: build-all-static
+build-all-static: dockron-linux-amd64 dockron-linux-arm dockron-linux-arm64
+
 # Cleans all build artifacts
 .PHONY: clean
 clean:

@@ -8,62 +8,24 @@ steps:
   - name: build
     image: golang:1.11
     commands:
-      - go version
-      - go env
       - go get -u github.com/golang/dep/cmd/dep
-      - make build
+      - make build-all-static
 
----
-kind: pipeline
-name: linux-amd64
-
-depends_on:
-  - test
-
-trigger:
-  event:
-    - push
-    - tag
-  refs:
-    - refs/heads/master
-    - refs/tags/v*
-
-steps:
-
-  - name: build
+  - name: push amd64 image
     image: plugins/docker
     settings:
       repo: iamthefij/dockron
-      auto_tag: true
-      auto_tag_suffix: linux-amd64
+      tag: linux-amd64
       username:
         from_secret: docker_username
       password:
         from_secret: docker_password
 
----
-kind: pipeline
-name: linux-arm
-
-depends_on:
-  - test
-
-trigger:
-  event:
-    - push
-    - tag
-  refs:
-    - refs/heads/master
-    - refs/tags/v*
-
-steps:
-
-  - name: build
+  - name: push arm image
     image: plugins/docker
     settings:
       repo: iamthefij/dockron
-      auto_tag: true
-      auto_tag_suffix: linux-arm
+      tag: linux-arm
       username:
         from_secret: docker_username
       password:
@@ -72,63 +34,122 @@ steps:
         - ARCH=arm
         - REPO=arm32v6
 
----
-kind: pipeline
-name: linux-arm64
-
-depends_on:
-  - test
-
-trigger:
-  event:
-    - push
-    - tag
-  refs:
-    - refs/heads/master
-    - refs/tags/v*
-
-steps:
-
-  - name: build
-    image: plugins/docker
-    settings:
-      repo: iamthefij/dockron
-      auto_tag: true
-      auto_tag_suffix: linux-arm64
-      username:
-        from_secret: docker_username
-      password:
-        from_secret: docker_password
-      build_args:
-        - ARCH=arm64
-        - REPO=arm64v8
-
----
-kind: pipeline
-name: manifest
-
-depends_on:
-  - linux-amd64
-  - linux-arm
-  - linux-arm64
-
-trigger:
-  event:
-    - push
-    - tag
-  ref:
-    - refs/heads/master
-    - refs/tags/v*
-
-steps:
-  - name: publish manifest
-    image: plugins/manifest
-    settings:
-      spec: manifest.tmpl
-      auto_tag: true
-      ignore_missing: true
-      username:
-        from_secret: docker_username
-      password:
-        from_secret: docker_password
-
+# ---
+# kind: pipeline
+# name: linux-amd64
+#
+# depends_on:
+#   - test
+#
+# trigger:
+#   event:
+#     - push
+#     - tag
+#   refs:
+#     - refs/heads/master
+#     - refs/tags/v*
+#
+# steps:
+#
+#   - name: build
+#     image: plugins/docker
+#     settings:
+#       repo: iamthefij/dockron
+#       auto_tag: true
+#       auto_tag_suffix: linux-amd64
+#       username:
+#         from_secret: docker_username
+#       password:
+#         from_secret: docker_password
+#
+# ---
+# kind: pipeline
+# name: linux-arm
+#
+# depends_on:
+#   - test
+#
+# trigger:
+#   event:
+#     - push
+#     - tag
+#   refs:
+#     - refs/heads/master
+#     - refs/tags/v*
+#
+# steps:
+#
+#   - name: build
+#     image: plugins/docker
+#     settings:
+#       repo: iamthefij/dockron
+#       auto_tag: true
+#       auto_tag_suffix: linux-arm
+#       username:
+#         from_secret: docker_username
+#       password:
+#         from_secret: docker_password
+#       build_args:
+#         - ARCH=arm
+#         - REPO=arm32v6
+#
+# ---
+# kind: pipeline
+# name: linux-arm64
+#
+# depends_on:
+#   - test
+#
+# trigger:
+#   event:
+#     - push
+#     - tag
+#   refs:
+#     - refs/heads/master
+#     - refs/tags/v*
+#
+# steps:
+#
+#   - name: build
+#     image: plugins/docker
+#     settings:
+#       repo: iamthefij/dockron
+#       auto_tag: true
+#       auto_tag_suffix: linux-arm64
+#       username:
+#         from_secret: docker_username
+#       password:
+#         from_secret: docker_password
+#       build_args:
+#         - ARCH=arm64
+#         - REPO=arm64v8
+#
+# ---
+# kind: pipeline
+# name: manifest
+#
+# depends_on:
+#   - linux-amd64
+#   - linux-arm
+#   - linux-arm64
+#
+# trigger:
+#   event:
+#     - push
+#     - tag
+#   ref:
+#     - refs/heads/master
+#     - refs/tags/v*
+#
+# steps:
+#   - name: publish manifest
+#     image: plugins/manifest
+#     settings:
+#       spec: manifest.tmpl
+#       auto_tag: true
+#       ignore_missing: true
+#       username:
+#         from_secret: docker_username
+#       password:
+#         from_secret: docker_password
+#
