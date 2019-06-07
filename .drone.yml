@@ -1,28 +1,124 @@
-platform: ${platform}
+# kind: pipeline
+# name: build
+#
+# workspace:
+#   base: /go
+#
+# steps:
+#   - name: build
+#     image: golang:1.11
+#     commands:
+#       - go version
+#       - go env
+#       - go get -u github.com/golang/dep/cmd/dep
+#       - make build
 
-workspace:
-  base: /go
+kind: pipeline
+name: linux-amd64
 
-pipeline:
-  build:
-    image: golang:1.10
-    commands:
-      - go version
-      - go env
-      - go get -u github.com/golang/dep/cmd/dep
-      - make build
-  # publish:
-  #   image: plugins/docker:${docker_tag}
-  #   repo: iamthefij/dockron
-  #   secrets:
-  #     - docker_username
-  #     - docker_password
-  #   tag:
-  #     - ${docker_tag}
+trigger:
+  event:
+    - push
+    - tag
+  # ref:
+  #   - refs/heads/master
+  #   - refs/tags/v*
 
-matrix:
-  include:
-    - platform: linux/amd64
-      docker_tag: latest
-    # - platform: linux/arm
-    #   docker_tag: linux-arm
+steps:
+
+  - name: build
+    image: plugins/docker
+    settings:
+      repo: iamthefij/multiarch-pipeline-test
+      auto_tag: true
+      auto_tag_suffix: linux-amd64
+      username:
+        from_secret: docker_username
+      password:
+        from_secret: docker_password
+
+---
+kind: pipeline
+name: linux-arm
+
+trigger:
+  event:
+    - push
+    - tag
+  # ref:
+  #   - refs/heads/master
+  #   - refs/tags/v*
+
+steps:
+
+  - name: build
+    image: plugins/docker
+    settings:
+      repo: iamthefij/multiarch-pipeline-test
+      auto_tag: true
+      auto_tag_suffix: linux-arm
+      username:
+        from_secret: docker_username
+      password:
+        from_secret: docker_password
+      build_args:
+        - ARCH=arm
+        - REPO=arm32v6
+
+---
+kind: pipeline
+name: linux-arm64
+
+trigger:
+  event:
+    - push
+    - tag
+  # ref:
+  #   - refs/heads/master
+  #   - refs/tags/v*
+
+steps:
+
+  - name: build
+    image: plugins/docker
+    settings:
+      repo: iamthefij/multiarch-pipeline-test
+      auto_tag: true
+      auto_tag_suffix: linux-arm64
+      username:
+        from_secret: docker_username
+      password:
+        from_secret: docker_password
+      build_args:
+        - ARCH=arm64
+        - REPO=arm64v8
+
+# ---
+# kind: pipeline
+# name: manifest
+#
+# depends_on:
+#   - linux-amd64
+#   - linux-arm
+#   - linux-arm64
+#
+# trigger:
+#   event:
+#     - push
+#     - tag
+#   ref:
+#     - refs/heads/master
+#     - refs/tags/v*
+#
+# steps:
+#   - name: publish manifest
+#     image: plugins/manifest
+#     settings:
+#       spec: manifest.tmpl
+#       auto_tag: true
+#       ignore_missing: true
+#       username:
+#         from_secret: docker_username
+#       password:
+#         from_secret: docker_password
+#
