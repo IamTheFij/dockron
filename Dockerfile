@@ -16,6 +16,6 @@ FROM ${REPO}/busybox:latest
 WORKDIR /root/
 # COPY --from=builder /go/src/app/dockron .
 ARG ARCH=amd64
-COPY ./dockron-linux-${ARCH} .
+COPY ./dockron-linux-${ARCH} ./dockron
 
 CMD [ "./dockron" ]
