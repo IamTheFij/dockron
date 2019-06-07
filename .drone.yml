@@ -1,8 +1,8 @@
 kind: pipeline
 name: test
 
-# workspace:
-#   base: /go
+workspace:
+  base: /go/src
 
 steps:
   - name: build
