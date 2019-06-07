@@ -20,9 +20,6 @@ trigger:
   event:
     - push
     - tag
-  # ref:
-  #   - refs/heads/master
-  #   - refs/tags/v*
 
 steps:
 
@@ -45,9 +42,6 @@ trigger:
   event:
     - push
     - tag
-  # ref:
-  #   - refs/heads/master
-  #   - refs/tags/v*
 
 steps:
 
@@ -73,9 +67,6 @@ trigger:
   event:
     - push
     - tag
-  # ref:
-  #   - refs/heads/master
-  #   - refs/tags/v*
 
 steps:
 
