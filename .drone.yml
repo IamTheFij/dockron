@@ -2,7 +2,7 @@ kind: pipeline
 name: test
 
 workspace:
-  base: /go/src
+  base: /go/src/dockron
 
 steps:
   - name: build
