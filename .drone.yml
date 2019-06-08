@@ -1,14 +1,10 @@
 kind: pipeline
 name: test
 
-workspace:
-  base: /go/src/dockron
-
 steps:
   - name: build
-    image: golang:1.11
+    image: golang:1.12
     commands:
-      - go get -u github.com/golang/dep/cmd/dep
       - make build
 
 ---
@@ -26,15 +22,11 @@ trigger:
     - refs/heads/master
     - refs/tags/v*
 
-workspace:
-  base: /go/src/dockron
-
 steps:
   - name: build
-    image: golang:1.11
+    image: golang:1.12
     commands:
-      - go get -u github.com/golang/dep/cmd/dep
-      - make build-linux-static
+      - make build-all-static
 
   - name: push image - arm
     image: plugins/docker

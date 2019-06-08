@@ -8,11 +8,11 @@ default: build
 
 # Downloads dependencies into vendor directory
 vendor:
-	dep ensure
+	go mod vendor
 
 # Runs the application, useful while developing
 .PHONY: run
-run: vendor
+run:
 	go run *.go
 
 # Output target
@@ -53,17 +53,13 @@ build-all-static: dockron-darwin-amd64 build-linux-static
 # Cleans all build artifacts
 .PHONY: clean
 clean:
-	rm dockron
+	rm -f dockron
+	rm -f dockron-linux-*
 
 # Cleans vendor directory
 .PHONY: clean-vendor
 clean-vendor:
 	rm -fr ./vendor
-
-# Attempts to update dependencies
-.PHONY: dep-update
-dep-update:
-	dep ensure -update
 
 .PHONY: docker-build
 docker-build:
