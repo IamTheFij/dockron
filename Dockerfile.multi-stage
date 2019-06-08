@@ -1,0 +1,16 @@
+ARG REPO=library
+FROM ${REPO}/golang:1.11-alpine AS builder
+
+COPY ./go.mod ./go.sum /go/src/app/
+
+RUN go mod download
+
+COPY ./main.go /go/src/app/
+
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=${ARCH} go build -a -installsuffix nocgo -o dockron .
+
+FROM ${REPO}/busybox:latest
+WORKDIR /root/
+COPY --from=builder /go/src/app/dockron .
+
+CMD [ "./dockron" ]

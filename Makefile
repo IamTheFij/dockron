@@ -5,28 +5,28 @@ default: build
 
 # Downloads dependencies into vendor directory
 vendor:
-	dep ensure
+	go mod vendor
 
 # Runs the application, useful while developing
 .PHONY: run
-run: vendor
+run:
 	go run *.go
 
 # Output target
-dockron: vendor
+dockron:
 	go build -o dockron
 
 # Alias for building
 .PHONY: build
 build: dockron
 
-dockron-linux-amd64: vendor
+dockron-linux-amd64:
 	GOARCH=amd64 CGO_ENABLED=0 GOOS=linux go build -a -installsuffix nocgo -o dockron-linux-amd64
 
-dockron-linux-arm: vendor
+dockron-linux-arm:
 	GOARCH=arm CGO_ENABLED=0 GOOS=linux go build -a -installsuffix nocgo -o dockron-linux-arm
 
-dockron-linux-arm64: vendor
+dockron-linux-arm64:
 	GOARCH=arm64 CGO_ENABLED=0 GOOS=linux go build -a -installsuffix nocgo -o dockron-linux-arm64
 
 .PHONY: build-all-static
@@ -36,16 +36,12 @@ build-all-static: dockron-linux-amd64 dockron-linux-arm dockron-linux-arm64
 .PHONY: clean
 clean:
 	rm dockron
+	rm dockron-linux-*
 
 # Cleans vendor directory
 .PHONY: clean-vendor
 clean-vendor:
 	rm -fr ./vendor
-
-# Attempts to update dependencies
-.PHONY: dep-update
-dep-update:
-	dep ensure -update
 
 .PHONY: docker-build
 docker-build:
