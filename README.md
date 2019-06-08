@@ -16,6 +16,14 @@ It will then run in the foreground, periodically checking Docker for containers 
 
 By default, Dockron will periodically poll Docker for new containers or schedule changes every minute. You can specify an interval by using the `-watch` flag.
 
+### Running with Docker
+
+Dockron is also available as a Docker image. The multi-arch repo can be found at [IamTheFij/dockron](https://hub.docker.com/r/iamthefij/dockron)
+
+From either an `amd64`, `arm`, or `arm64` machine, you can run Dockron using:
+
+    docker run -v /var/run/docker.sock:/var/run/docker.sock:ro iamthefij/dockron -watch
+
 ### Scheduling a container
 
 First, be sure your container is something that is not long running and will actually exit when complete. This is for batch runs and not keeping a service running. Docker should be able to do that on it's own with a restart policy.
