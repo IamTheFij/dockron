@@ -1,4 +1,7 @@
 DOCKER_TAG ?= dockron-dev-${USER}
+GIT_TAG_NAME := $(shell git tag -l --contains HEAD)
+GIT_SHA := $(shell git rev-parse HEAD)
+VERSION := $(if $(GIT_TAG_NAME),$(GIT_TAG_NAME),$(GIT_SHA))
 
 .PHONY: default
 default: build
@@ -14,23 +17,38 @@ run: vendor
 
 # Output target
 dockron: vendor
-	go build -o dockron
+	@echo Version: $(VERSION)
+	go build -ldflags '-X "main.version=${VERSION}"' -o dockron
 
 # Alias for building
 .PHONY: build
 build: dockron
 
+dockron-darwin-amd64: vendor
+	GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 \
+		   go build -ldflags '-X "main.version=${VERSION}"' -a -installsuffix nocgo \
+		   -o dockron-darwin-amd64
+
 dockron-linux-amd64: vendor
-	GOARCH=amd64 CGO_ENABLED=0 GOOS=linux go build -a -installsuffix nocgo -o dockron-linux-amd64
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 \
+		   go build -ldflags '-X "main.version=${VERSION}"' -a -installsuffix nocgo \
+		   -o dockron-linux-amd64
 
 dockron-linux-arm: vendor
-	GOARCH=arm CGO_ENABLED=0 GOOS=linux go build -a -installsuffix nocgo -o dockron-linux-arm
+	GOOS=linux GOARCH=arm CGO_ENABLED=0 \
+		   go build -ldflags '-X "main.version=${VERSION}"' -a -installsuffix nocgo \
+		   -o dockron-linux-arm
 
 dockron-linux-arm64: vendor
-	GOARCH=arm64 CGO_ENABLED=0 GOOS=linux go build -a -installsuffix nocgo -o dockron-linux-arm64
+	GOOS=linux GOARCH=arm64 CGO_ENABLED=0 \
+		   go build -ldflags '-X "main.version=${VERSION}"' -a -installsuffix nocgo \
+		   -o dockron-linux-arm64
+
+.PHONY: build-linux-static
+build-linux-static: dockron-linux-amd64 dockron-linux-arm dockron-linux-arm64
 
 .PHONY: build-all-static
-build-all-static: dockron-linux-amd64 dockron-linux-arm dockron-linux-arm64
+build-all-static: dockron-darwin-amd64 build-linux-static
 
 # Cleans all build artifacts
 .PHONY: clean

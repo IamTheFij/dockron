@@ -26,6 +26,6 @@ _testmain.go
 
 # Output
 dockron
-dockron-linux-*
+dockron-*
 # deps
 vendor/

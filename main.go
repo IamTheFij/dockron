@@ -7,15 +7,21 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/robfig/cron"
 	"golang.org/x/net/context"
+	"os"
 	"strings"
 	"time"
 )
 
-// WatchInterval is the duration we should sleep until polling Docker
-var DefaultWatchInterval = (1 * time.Minute)
+var (
+	// defaultWatchInterval is the duration we should sleep until polling Docker
+	defaultWatchInterval = (1 * time.Minute)
 
-// SchedLabel is the string label to search for cron expressions
-var SchedLabel = "dockron.schedule"
+	// schedLabel is the string label to search for cron expressions
+	schedLabel = "dockron.schedule"
+
+	// version of dockron being run
+	version = "dev"
+)
 
 // ContainerStartJob represents a scheduled container task
 // It contains a reference to a client, the schedule to run on, and the
@@ -48,7 +54,7 @@ func QueryScheduledJobs(cli *client.Client) (jobs []ContainerStartJob) {
 	}
 
 	for _, container := range containers {
-		if val, ok := container.Labels[SchedLabel]; ok {
+		if val, ok := container.Labels[schedLabel]; ok {
 			jobName := strings.Join(container.Names, "/")
 			jobs = append(jobs, ContainerStartJob{
 				Schedule:    val,
@@ -81,8 +87,15 @@ func main() {
 
 	// Read interval for polling Docker
 	var watchInterval time.Duration
-	flag.DurationVar(&watchInterval, "watch", DefaultWatchInterval, "Interval used to poll Docker for changes")
+	flag.DurationVar(&watchInterval, "watch", defaultWatchInterval, "Interval used to poll Docker for changes")
+	var showVersion = flag.Bool("version", false, "Display the version of dockron and exit")
 	flag.Parse()
+
+	// Print version if asked
+	if *showVersion {
+		fmt.Println("Dockron version:", version)
+		os.Exit(0)
+	}
 
 	// Create a Cron
 	c := cron.New()

@@ -34,7 +34,7 @@ steps:
     image: golang:1.11
     commands:
       - go get -u github.com/golang/dep/cmd/dep
-      - make build-all-static
+      - make build-linux-static
 
   - name: push image - arm
     image: plugins/docker
