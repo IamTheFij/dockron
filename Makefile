@@ -35,8 +35,8 @@ build-all-static: dockron-linux-amd64 dockron-linux-arm dockron-linux-arm64
 # Cleans all build artifacts
 .PHONY: clean
 clean:
-	rm dockron
-	rm dockron-linux-*
+	rm -f dockron
+	rm -f dockron-linux-*
 
 # Cleans vendor directory
 .PHONY: clean-vendor
