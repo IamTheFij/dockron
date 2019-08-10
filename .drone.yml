@@ -1,9 +1,6 @@
 kind: pipeline
 name: test
 
-workspace:
-  base: /go/src/dockron
-
 steps:
   - name: build
     image: golang:1.11
