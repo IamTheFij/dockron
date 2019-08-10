@@ -22,9 +22,6 @@ trigger:
     - refs/heads/master
     - refs/tags/v*
 
-workspace:
-  base: /go/src/dockron
-
 steps:
   - name: build
     image: golang:1.11
