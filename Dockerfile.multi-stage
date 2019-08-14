@@ -1,5 +1,5 @@
 ARG REPO=library
-FROM ${REPO}/golang:1.12-alpine AS builder
+FROM golang:1.12-alpine AS builder
 
 RUN apk add --no-cache git
 
@@ -10,13 +10,14 @@ COPY ./go.mod ./go.sum /app/
 RUN go mod download
 
 COPY ./main.go /app/
+
 ARG ARCH=amd64
 ARG VERSION=dev
 ENV CGO_ENABLED=0 GOOS=linux GOARCH=${ARCH}
-RUN go build -ldflags '-X "main.version=${VERSION}"' -a -installsuffix nocgo -o dockron .
+RUN go build -ldflags "-X main.version=${VERSION}" -a -installsuffix nocgo -o dockron .
 
 FROM ${REPO}/busybox:latest
 WORKDIR /root/
 COPY --from=builder /app/dockron .
 
-CMD [ "./dockron" ]
+ENTRYPOINT [ "./dockron" ]

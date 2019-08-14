@@ -5,4 +5,4 @@ WORKDIR /root/
 ARG ARCH=amd64
 COPY ./dockron-linux-${ARCH} ./dockron
 
-CMD [ "./dockron" ]
+ENTRYPOINT [ "./dockron" ]
