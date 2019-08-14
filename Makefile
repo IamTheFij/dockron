@@ -66,12 +66,12 @@ docker-build:
 	docker build . -t ${DOCKER_TAG}-linux-amd64
 
 # Cross build for arm architechtures
-.PHONY: docker-cross-build-arm
-docker-cross-build-arm:
+.PHONY: docker-build-arm
+docker-build-arm:
 	docker build --build-arg REPO=arm32v7 --build-arg ARCH=arm . -t ${DOCKER_TAG}-linux-arm
 
-.PHONY: docker-cross-build-arm
-docker-cross-build-arm64:
+.PHONY: docker-build-arm
+docker-build-arm64:
 	docker build --build-arg REPO=arm64v8 --build-arg ARCH=arm64 . -t ${DOCKER_TAG}-linux-arm64
 
 .PHONY: docker-run
@@ -79,10 +79,30 @@ docker-run: docker-build
 	docker run --rm -v /var/run/docker.sock:/var/run/docker.sock --name $(DOCKER_TAG)-run $(DOCKER_TAG)-linux-amd64
 
 # Cross run on host architechture
-.PHONY: docker-cross-run-arm
-docker-cross-run-arm: docker-cross-build-arm
+.PHONY: docker-run-arm
+docker-run-arm: docker-build-arm
 	docker run --rm -v /var/run/docker.sock:/var/run/docker.sock --name $(DOCKER_TAG)-run ${DOCKER_TAG}-linux-arm
 
-.PHONY: docker-cross-run-arm64
-docker-cross-run-arm64: docker-cross-build-arm64
+.PHONY: docker-run-arm64
+docker-run-arm64: docker-build-arm64
 	docker run --rm -v /var/run/docker.sock:/var/run/docker.sock --name $(DOCKER_TAG)-run ${DOCKER_TAG}-linux-arm64
+
+# Multi stage builds
+.PHONY: docker-staged-build
+docker-staged-build:
+	docker build --build-arg VERSION=${VERSION} \
+		-t ${DOCKER_TAG}-linux-amd64 \
+		-f Dockerfile.multi-stage .
+
+# Cross build for arm architechtures
+.PHONY: docker-staged-build-arm
+docker-staged-build-arm:
+	docker build --build-arg VERSION=${VERSION} \
+		--build-arg REPO=arm32v7 --build-arg ARCH=arm -t ${DOCKER_TAG}-linux-arm \
+		-f Dockerfile.multi-stage .
+
+.PHONY: docker-staged-build-arm
+docker-staged-build-arm64:
+	docker build --build-arg VERSION=${VERSION} \
+		--build-arg REPO=arm64v8 --build-arg ARCH=arm64 -t ${DOCKER_TAG}-linux-arm64 \
+		-f Dockerfile.multi-stage .
