@@ -68,7 +68,7 @@ docker-build:
 # Cross build for arm architechtures
 .PHONY: docker-cross-build-arm
 docker-cross-build-arm:
-	docker build --build-arg REPO=arm32v6 --build-arg ARCH=arm . -t ${DOCKER_TAG}-linux-arm
+	docker build --build-arg REPO=arm32v7 --build-arg ARCH=arm . -t ${DOCKER_TAG}-linux-arm
 
 .PHONY: docker-cross-build-arm
 docker-cross-build-arm64:

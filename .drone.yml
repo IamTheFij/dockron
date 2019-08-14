@@ -26,7 +26,7 @@ steps:
   - name: build
     image: golang:1.12
     commands:
-      - make build-all-static
+      - make build-linux-static
 
   - name: push image - arm
     image: plugins/docker
@@ -53,8 +53,8 @@ steps:
       password:
         from_secret: docker_password
       build_args:
-        - ARCH=arm
-        - REPO=arm32v6
+        - ARCH=arm64
+        - REPO=arm64v8
 
   - name: push image - amd64
     image: plugins/docker
