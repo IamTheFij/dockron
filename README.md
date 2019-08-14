@@ -49,3 +49,7 @@ I intend to keep it simple as well. It will likely never:
 * Handle job dependencies
 
 Either use a separate tool in conjunction with Dockron, or use a more robust scheduler like Tron, or Chronos.
+
+## Building
+
+If you have go on your machine, you can simply use `make build` or `make run` to build and test Dockron. If you don't have go but you do have Docker, you can still build docker images using the provide multi-stage Dockerfile! You can kick that off with `make docker-staged-build`

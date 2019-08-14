@@ -16,7 +16,7 @@ run:
 	go run *.go
 
 # Output target
-dockron: vendor
+dockron:
 	@echo Version: $(VERSION)
 	go build -ldflags '-X "main.version=${VERSION}"' -o dockron
 
@@ -24,22 +24,22 @@ dockron: vendor
 .PHONY: build
 build: dockron
 
-dockron-darwin-amd64: vendor
+dockron-darwin-amd64:
 	GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 \
 		   go build -ldflags '-X "main.version=${VERSION}"' -a -installsuffix nocgo \
 		   -o dockron-darwin-amd64
 
-dockron-linux-amd64: vendor
+dockron-linux-amd64:
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 \
 		   go build -ldflags '-X "main.version=${VERSION}"' -a -installsuffix nocgo \
 		   -o dockron-linux-amd64
 
-dockron-linux-arm: vendor
+dockron-linux-arm:
 	GOOS=linux GOARCH=arm CGO_ENABLED=0 \
 		   go build -ldflags '-X "main.version=${VERSION}"' -a -installsuffix nocgo \
 		   -o dockron-linux-arm
 
-dockron-linux-arm64: vendor
+dockron-linux-arm64:
 	GOOS=linux GOARCH=arm64 CGO_ENABLED=0 \
 		   go build -ldflags '-X "main.version=${VERSION}"' -a -installsuffix nocgo \
 		   -o dockron-linux-arm64
@@ -62,16 +62,16 @@ clean-vendor:
 	rm -fr ./vendor
 
 .PHONY: docker-build
-docker-build:
+docker-build: dockron-linux-amd64
 	docker build . -t ${DOCKER_TAG}-linux-amd64
 
 # Cross build for arm architechtures
 .PHONY: docker-build-arm
-docker-build-arm:
+docker-build-arm: dockron-linux-arm
 	docker build --build-arg REPO=arm32v7 --build-arg ARCH=arm . -t ${DOCKER_TAG}-linux-arm
 
 .PHONY: docker-build-arm
-docker-build-arm64:
+docker-build-arm64: dockron-linux-arm64
 	docker build --build-arg REPO=arm64v8 --build-arg ARCH=arm64 . -t ${DOCKER_TAG}-linux-arm64
 
 .PHONY: docker-run
