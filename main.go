@@ -7,6 +7,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/robfig/cron/v3"
 	"golang.org/x/net/context"
+	"log"
 	"os"
 	"strings"
 	"time"
@@ -37,7 +38,7 @@ type ContainerStartJob struct {
 // Run is executed based on the ContainerStartJob Schedule and starts the
 // container
 func (job ContainerStartJob) Run() {
-	fmt.Println("Starting:", job.Name)
+	log.Println("Starting:", job.Name)
 	err := job.Client.ContainerStart(job.Context, job.ContainerID, types.ContainerStartOptions{})
 	if err != nil {
 		panic(err)
@@ -47,7 +48,7 @@ func (job ContainerStartJob) Run() {
 // QueryScheduledJobs queries Docker for all containers with a schedule and
 // returns a list of ContainerStartJob records to be scheduled
 func QueryScheduledJobs(cli *client.Client) (jobs []ContainerStartJob) {
-	fmt.Println("Scanning containers for new schedules...")
+	log.Println("Scanning containers for new schedules...")
 	containers, err := cli.ContainerList(context.Background(), types.ContainerListOptions{All: true})
 	if err != nil {
 		panic(err)
@@ -73,8 +74,14 @@ func QueryScheduledJobs(cli *client.Client) (jobs []ContainerStartJob) {
 // It then schedules the provided jobs
 func ScheduleJobs(c *cron.Cron, jobs []ContainerStartJob) {
 	for _, job := range jobs {
-		fmt.Printf("Scheduling %s (%s) with schedule '%s'\n", job.Name, job.ContainerID[:10], job.Schedule)
-		c.AddJob(job.Schedule, job)
+		// TODO: Do something with the entryId returned here
+		_, err := c.AddJob(job.Schedule, job)
+		if err == nil {
+			log.Printf("Scheduled %s (%s) with schedule '%s'\n", job.Name, job.ContainerID[:10], job.Schedule)
+		} else {
+			// TODO: Track something for a healthcheck here
+			log.Printf("Error scheduling %s (%s) with schedule '%s'. %v", job.Name, job.ContainerID[:10], job.Schedule, err)
+		}
 	}
 }
 
