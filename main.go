@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
-	"github.com/robfig/cron"
+	"github.com/robfig/cron/v3"
 	"golang.org/x/net/context"
 	"os"
 	"strings"
