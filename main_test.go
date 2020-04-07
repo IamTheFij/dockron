@@ -171,10 +171,7 @@ func TestScheduleJobs(t *testing.T) {
 		}
 	})
 
-	// Subsequently scheduled jobs will append since we currently just stop and create a new cron
-	// Eventually this test case should change when proper removal is supported
-
-	t.Run("Schedule a second job", func(t *testing.T) {
+	t.Run("Schedule a second job removing the first", func(t *testing.T) {
 		log.Printf("Running %s", t.Name())
 		jobs := []ContainerStartJob{
 			ContainerStartJob{
@@ -184,13 +181,6 @@ func TestScheduleJobs(t *testing.T) {
 			},
 		}
 		ScheduleJobs(c, jobs)
-		jobs = append([]ContainerStartJob{
-			ContainerStartJob{
-				ContainerID: "0123456789/has_schedule_1",
-				Name:        "has_schedule_1",
-				Schedule:    "* * * * *",
-			},
-		}, jobs...)
 
 		scheduledEntries := c.Entries()
 
