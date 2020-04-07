@@ -22,6 +22,9 @@ var (
 
 	// version of dockron being run
 	version = "dev"
+
+	// Debug can be used to show or supress certain log messages
+	Debug = true
 )
 
 // ContainerStartJob represents a scheduled container task
@@ -39,17 +42,33 @@ type ContainerStartJob struct {
 // container
 func (job ContainerStartJob) Run() {
 	log.Println("Starting:", job.Name)
-	err := job.Client.ContainerStart(job.Context, job.ContainerID, types.ContainerStartOptions{})
+	err := job.Client.ContainerStart(
+		job.Context,
+		job.ContainerID,
+		types.ContainerStartOptions{},
+	)
 	if err != nil {
 		panic(err)
 	}
 }
 
+// UniqueName returns a unique identifier for a container start job
+func (job ContainerStartJob) UniqueName() string {
+	// ContainerID should be unique as a change in label will result in
+	// a new container as they are immutable
+	return job.ContainerID
+}
+
 // QueryScheduledJobs queries Docker for all containers with a schedule and
 // returns a list of ContainerStartJob records to be scheduled
 func QueryScheduledJobs(cli *client.Client) (jobs []ContainerStartJob) {
-	log.Println("Scanning containers for new schedules...")
-	containers, err := cli.ContainerList(context.Background(), types.ContainerListOptions{All: true})
+	if Debug {
+		log.Println("Scanning containers for new schedules...")
+	}
+	containers, err := cli.ContainerList(
+		context.Background(),
+		types.ContainerListOptions{All: true},
+	)
 	if err != nil {
 		panic(err)
 	}
@@ -73,15 +92,47 @@ func QueryScheduledJobs(cli *client.Client) (jobs []ContainerStartJob) {
 // ScheduleJobs accepts a Cron instance and a list of jobs to schedule.
 // It then schedules the provided jobs
 func ScheduleJobs(c *cron.Cron, jobs []ContainerStartJob) {
+	// Fetch existing jobs from the cron
+	existingJobs := map[string]cron.EntryID{}
+	for _, entry := range c.Entries() {
+		existingJobs[entry.Job.(ContainerStartJob).UniqueName()] = entry.ID
+	}
+
 	for _, job := range jobs {
-		// TODO: Do something with the entryId returned here
+		if _, ok := existingJobs[job.UniqueName()]; ok {
+			// Job already exists, remove it from existing jobs so we don't
+			// unschedule it later
+			if Debug {
+				log.Printf("Job %s is already scheduled. Skipping", job.Name)
+			}
+			delete(existingJobs, job.UniqueName())
+			continue
+		}
+
+		// Job doesn't exist yet, schedule it
 		_, err := c.AddJob(job.Schedule, job)
 		if err == nil {
-			log.Printf("Scheduled %s (%s) with schedule '%s'\n", job.Name, job.ContainerID[:10], job.Schedule)
+			log.Printf(
+				"Scheduled %s (%s) with schedule '%s'\n",
+				job.Name,
+				job.ContainerID[:10],
+				job.Schedule,
+			)
 		} else {
 			// TODO: Track something for a healthcheck here
-			log.Printf("Error scheduling %s (%s) with schedule '%s'. %v", job.Name, job.ContainerID[:10], job.Schedule, err)
+			log.Printf(
+				"Error scheduling %s (%s) with schedule '%s'. %v",
+				job.Name,
+				job.ContainerID[:10],
+				job.Schedule,
+				err,
+			)
 		}
+	}
+
+	// Remove remaining scheduled jobs that weren't in the new list
+	for _, entryID := range existingJobs {
+		c.Remove(entryID)
 	}
 }
 
@@ -96,6 +147,7 @@ func main() {
 	var watchInterval time.Duration
 	flag.DurationVar(&watchInterval, "watch", defaultWatchInterval, "Interval used to poll Docker for changes")
 	var showVersion = flag.Bool("version", false, "Display the version of dockron and exit")
+	flag.BoolVar(&Debug, "debug", false, "Show debug logs")
 	flag.Parse()
 
 	// Print version if asked
@@ -106,21 +158,13 @@ func main() {
 
 	// Create a Cron
 	c := cron.New()
+	c.Start()
 
 	// Start the loop
 	for {
-		// HACK: This is risky as it could fall on the same interval as a task and that task would get skipped
-		// It would be best to manage a ContainerID to Job mapping and then remove entries that are missing
-		// in the new list and add new entries. However, cron does not support this yet.
-
-		// Stop and create a new cron
-		c.Stop()
-		c = cron.New()
-
 		// Schedule jobs again
 		jobs := QueryScheduledJobs(cli)
 		ScheduleJobs(c, jobs)
-		c.Start()
 
 		// Sleep until the next query time
 		time.Sleep(watchInterval)

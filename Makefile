@@ -1,3 +1,4 @@
+.PHONY: test all
 DOCKER_TAG ?= dockron-dev-${USER}
 GIT_TAG_NAME := $(shell git tag -l --contains HEAD)
 GIT_SHA := $(shell git rev-parse HEAD)
@@ -13,7 +14,7 @@ vendor:
 # Runs the application, useful while developing
 .PHONY: run
 run:
-	go run *.go
+	go run *.go -watch 10s -debug
 
 # Output target
 dockron:
