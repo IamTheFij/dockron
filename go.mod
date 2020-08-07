@@ -12,6 +12,5 @@ require (
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/stevvooe/resumable v0.0.0-20180830230917-22b14a53ba50 // indirect
 	github.com/stretchr/testify v1.5.1 // indirect
-	golang.org/x/net v0.0.0-20180801234040-f4c29de78a2a
-	golang.org/x/sys v0.0.0-20180802203216-0ffbfd41fbef // indirect
+	golang.org/x/net v0.0.0-20200707034311-ab3426394381
 )
