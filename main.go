@@ -3,14 +3,15 @@ package main
 import (
 	"flag"
 	"fmt"
-	dockerTypes "github.com/docker/docker/api/types"
-	dockerClient "github.com/docker/docker/client"
-	"github.com/robfig/cron/v3"
-	"golang.org/x/net/context"
 	"log"
 	"os"
 	"strings"
 	"time"
+
+	dockerTypes "github.com/docker/docker/api/types"
+	dockerClient "github.com/docker/docker/client"
+	"github.com/robfig/cron/v3"
+	"golang.org/x/net/context"
 )
 
 var (
@@ -86,7 +87,7 @@ func ScheduleJobs(c *cron.Cron, jobs []ContainerStartJob) {
 			log.Printf("Scheduled %s (%s) with schedule '%s'\n", job.Name, job.ContainerID[:10], job.Schedule)
 		} else {
 			// TODO: Track something for a healthcheck here
-			log.Printf("Error scheduling %s (%s) with schedule '%s'. %v", job.Name, job.ContainerID[:10], job.Schedule, err)
+			log.Printf("Error scheduling %s (%s) with schedule '%s'. %v\n", job.Name, job.ContainerID[:10], job.Schedule, err)
 		}
 	}
 }
@@ -123,9 +124,9 @@ func main() {
 		c.Stop()
 		c = cron.New()
 
-		// Schedule jobs again
 		jobs := QueryScheduledJobs(client)
 		ScheduleJobs(c, jobs)
+
 		c.Start()
 
 		// Sleep until the next query time

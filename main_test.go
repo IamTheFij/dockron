@@ -2,11 +2,12 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"testing"
+
 	dockerTypes "github.com/docker/docker/api/types"
 	"github.com/robfig/cron/v3"
 	"golang.org/x/net/context"
-	"log"
-	"testing"
 )
 
 // FakeDockerClient is used to test without interracting with Docker

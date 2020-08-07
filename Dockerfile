@@ -1,8 +1,6 @@
-ARG REPO=library
-FROM ${REPO}/busybox:latest
-WORKDIR /root/
+FROM scratch
 
 ARG ARCH=amd64
-COPY ./dockron-linux-${ARCH} ./dockron
+COPY ./dockron-linux-${ARCH} /dockron
 
-ENTRYPOINT [ "./dockron" ]
+ENTRYPOINT [ "/dockron" ]
