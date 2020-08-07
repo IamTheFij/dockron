@@ -145,7 +145,7 @@ func ScheduleJobs(c *cron.Cron, jobs []ContainerStartJob) {
 
 func main() {
 	// Get a Docker Client
-	client, err := dockerClient.NewEnvClient()
+	client, err := dockerClient.NewClientWithOpts(dockerClient.FromEnv)
 	if err != nil {
 		panic(err)
 	}
