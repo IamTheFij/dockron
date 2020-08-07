@@ -134,64 +134,118 @@ func TestQueryScheduledJobs(t *testing.T) {
 	}
 }
 
+// TestScheduleJobs validates that only new jobs get created
 func TestScheduleJobs(t *testing.T) {
-	c := cron.New()
+	croner := cron.New()
 
-	t.Run("Schedule nothing", func(t *testing.T) {
-		log.Printf("Running %s", t.Name())
-		jobs := []ContainerStartJob{}
-		ScheduleJobs(c, jobs)
-
-		scheduledEntries := c.Entries()
-
-		ErrorUnequal(t, len(jobs), len(scheduledEntries), "Job lengths don't match")
-		for i, job := range jobs {
-			// Set client for comparison
-			ErrorUnequal(t, job, scheduledEntries[i].Job, "Job value does not match")
-		}
-	})
-
-	t.Run("Schedule a job", func(t *testing.T) {
-		log.Printf("Running %s", t.Name())
-		jobs := []ContainerStartJob{
-			ContainerStartJob{
-				ContainerID: "0123456789/has_schedule_1",
-				Name:        "has_schedule_1",
-				Schedule:    "* * * * *",
+	// Each cases is on the same cron instance
+	// Tests must be executed sequentially!
+	cases := []struct {
+		name         string
+		queriedJobs  []ContainerStartJob
+		expectedJobs []ContainerStartJob
+	}{
+		{
+			name:         "No containers",
+			queriedJobs:  []ContainerStartJob{},
+			expectedJobs: []ContainerStartJob{},
+		},
+		{
+			name: "One container with schedule",
+			queriedJobs: []ContainerStartJob{
+				ContainerStartJob{
+					Name:        "has_schedule_1",
+					ContainerID: "has_schedule_1",
+					Schedule:    "* * * * *",
+				},
 			},
-		}
-		ScheduleJobs(c, jobs)
-
-		scheduledEntries := c.Entries()
-
-		ErrorUnequal(t, len(jobs), len(scheduledEntries), "Job lengths don't match")
-		for i, job := range jobs {
-			// Set client for comparison
-			ErrorUnequal(t, job, scheduledEntries[i].Job, "Job value does not match")
-		}
-	})
-
-	t.Run("Schedule a second job removing the first", func(t *testing.T) {
-		log.Printf("Running %s", t.Name())
-		jobs := []ContainerStartJob{
-			ContainerStartJob{
-				ContainerID: "0123456789/has_schedule_2",
-				Name:        "has_schedule_2",
-				Schedule:    "* * * * *",
+			expectedJobs: []ContainerStartJob{
+				ContainerStartJob{
+					Name:        "has_schedule_1",
+					ContainerID: "has_schedule_1",
+					Schedule:    "* * * * *",
+				},
 			},
-		}
-		ScheduleJobs(c, jobs)
+		},
+		{
+			name: "Add a second job",
+			queriedJobs: []ContainerStartJob{
+				ContainerStartJob{
+					Name:        "has_schedule_1",
+					ContainerID: "has_schedule_1",
+					Schedule:    "* * * * *",
+				},
+				ContainerStartJob{
+					Name:        "has_schedule_2",
+					ContainerID: "has_schedule_2",
+					Schedule:    "* * * * *",
+				},
+			},
+			expectedJobs: []ContainerStartJob{
+				ContainerStartJob{
+					Name:        "has_schedule_1",
+					ContainerID: "has_schedule_1",
+					Schedule:    "* * * * *",
+				},
+				ContainerStartJob{
+					Name:        "has_schedule_2",
+					ContainerID: "has_schedule_2",
+					Schedule:    "* * * * *",
+				},
+			},
+		},
+		{
+			name: "Replace job 1",
+			queriedJobs: []ContainerStartJob{
+				ContainerStartJob{
+					Name:        "has_schedule_1",
+					ContainerID: "has_schedule_1_prime",
+					Schedule:    "* * * * *",
+				},
+				ContainerStartJob{
+					Name:        "has_schedule_2",
+					ContainerID: "has_schedule_2",
+					Schedule:    "* * * * *",
+				},
+			},
+			expectedJobs: []ContainerStartJob{
+				ContainerStartJob{
+					Name:        "has_schedule_2",
+					ContainerID: "has_schedule_2",
+					Schedule:    "* * * * *",
+				},
+				ContainerStartJob{
+					Name:        "has_schedule_1",
+					ContainerID: "has_schedule_1_prime",
+					Schedule:    "* * * * *",
+				},
+			},
+		},
+	}
 
-		scheduledEntries := c.Entries()
+	for loopIndex, c := range cases {
+		t.Run(fmt.Sprintf("Loop %d: %s", loopIndex, c.name), func(t *testing.T) {
+			log.Printf("Running %s", t.Name())
 
-		ErrorUnequal(t, len(jobs), len(scheduledEntries), "Additional job didn't show")
-		for i, job := range jobs {
-			// Set client for comparison
-			ErrorUnequal(t, job, scheduledEntries[i].Job, "Job value does not match")
-		}
-	})
+			t.Logf("Expected jobs: %+v Queried jobs: %+v", c.expectedJobs, c.queriedJobs)
+
+			ScheduleJobs(croner, c.queriedJobs)
+
+			scheduledEntries := croner.Entries()
+			t.Logf("Cron entries: %+v", scheduledEntries)
+
+			ErrorUnequal(t, len(c.expectedJobs), len(scheduledEntries), "Job and entry lengths don't match")
+			for i, entry := range scheduledEntries {
+				ErrorUnequal(t, c.expectedJobs[i], entry.Job, "Job value does not match entry")
+			}
+		})
+	}
+
+	// Make sure the cron stops
+	croner.Stop()
 }
 
+// TestDoLoop is close to an integration test that checks the main loop logic
 func TestDoLoop(t *testing.T) {
 	croner := cron.New()
 	client := NewFakeDockerClient()
@@ -262,6 +316,76 @@ func TestDoLoop(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "Add a second container with a schedule",
+			fakeContainers: []dockerTypes.Container{
+				dockerTypes.Container{
+					Names: []string{"has_schedule_1"},
+					ID:    "has_schedule_1",
+					Labels: map[string]string{
+						"dockron.schedule": "* * * * *",
+					},
+				},
+				dockerTypes.Container{
+					Names: []string{"has_schedule_2"},
+					ID:    "has_schedule_2",
+					Labels: map[string]string{
+						"dockron.schedule": "* * * * *",
+					},
+				},
+			},
+			expectedJobs: []ContainerStartJob{
+				ContainerStartJob{
+					Name:        "has_schedule_1",
+					ContainerID: "has_schedule_1",
+					Schedule:    "* * * * *",
+					Context:     context.Background(),
+					Client:      client,
+				},
+				ContainerStartJob{
+					Name:        "has_schedule_2",
+					ContainerID: "has_schedule_2",
+					Schedule:    "* * * * *",
+					Context:     context.Background(),
+					Client:      client,
+				},
+			},
+		},
+		{
+			name: "Modify the first container",
+			fakeContainers: []dockerTypes.Container{
+				dockerTypes.Container{
+					Names: []string{"has_schedule_1"},
+					ID:    "has_schedule_1_prime",
+					Labels: map[string]string{
+						"dockron.schedule": "* * * * *",
+					},
+				},
+				dockerTypes.Container{
+					Names: []string{"has_schedule_2"},
+					ID:    "has_schedule_2",
+					Labels: map[string]string{
+						"dockron.schedule": "* * * * *",
+					},
+				},
+			},
+			expectedJobs: []ContainerStartJob{
+				ContainerStartJob{
+					Name:        "has_schedule_2",
+					ContainerID: "has_schedule_2",
+					Schedule:    "* * * * *",
+					Context:     context.Background(),
+					Client:      client,
+				},
+				ContainerStartJob{
+					Name:        "has_schedule_1",
+					ContainerID: "has_schedule_1_prime",
+					Schedule:    "* * * * *",
+					Context:     context.Background(),
+					Client:      client,
+				},
+			},
+		},
 	}
 
 	for loopIndex, c := range cases {
@@ -273,8 +397,6 @@ func TestDoLoop(t *testing.T) {
 			client.FakeContainers = c.fakeContainers
 
 			// Execute loop iteration loop
-			// This is in the for loop
-			croner := cron.New()
 			jobs := QueryScheduledJobs(client)
 			ScheduleJobs(croner, jobs)
 
