@@ -1,0 +1,18 @@
+---
+version: '3'
+
+services:
+  dockron:
+    build:
+      context: .
+      dockerfile: ./Dockerfile.multi-stage
+    command: ["-watch", "10s", "-debug"]
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+  echoer:
+    image: busybox:latest
+    command: ["date"]
+    labels:
+      # Execute every minute
+      - 'dockron.schedule=* * * * *'

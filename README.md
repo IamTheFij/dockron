@@ -28,7 +28,7 @@ From either an `amd64`, `arm`, or `arm64` machine, you can run Dockron using:
 
 First, be sure your container is something that is not long running and will actually exit when complete. This is for batch runs and not keeping a service running. Docker should be able to do that on it's own with a restart policy.
 
-Create your container and add a label in the form `dockron.schedule="* * * * *"`, where the value is a valid cron expression (See the section [Cron Expression Formatting](#cron-expression-formatting)).
+Create your container and add a label in the form `'dockron.schedule=* * * * *'`, where the value is a valid cron expression (See the section [Cron Expression Formatting](#cron-expression-formatting)).
 
 Dockron will now start that container peridically on the schedule.
 
@@ -53,3 +53,5 @@ Either use a separate tool in conjunction with Dockron, or use a more robust sch
 ## Building
 
 If you have go on your machine, you can simply use `make build` or `make run` to build and test Dockron. If you don't have go but you do have Docker, you can still build docker images using the provide multi-stage Dockerfile! You can kick that off with `make docker-staged-build`
+
+There is also an example `docker-compose.yml` that will use the multi-stage build to ensure an easy sample. This can be run with `make docker-example`.

@@ -4,11 +4,13 @@ GIT_TAG_NAME := $(shell git tag -l --contains HEAD)
 GIT_SHA := $(shell git rev-parse HEAD)
 VERSION := $(if $(GIT_TAG_NAME),$(GIT_TAG_NAME),$(GIT_SHA))
 
+GOFILES = *.go go.mod go.sum
+
 .PHONY: default
 default: build
 
 # Downloads dependencies into vendor directory
-vendor:
+vendor: $(GOFILES)
 	go mod vendor
 
 # Runs the application, useful while developing
@@ -34,7 +36,7 @@ check:
 	pre-commit run --all-files
 
 # Output target
-dockron:
+dockron: $(GOFILES)
 	@echo Version: $(VERSION)
 	go build -ldflags '-X "main.version=${VERSION}"' -o dockron
 
@@ -42,22 +44,22 @@ dockron:
 .PHONY: build
 build: dockron
 
-dockron-darwin-amd64:
+dockron-darwin-amd64: $(GOFILES)
 	GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 \
 		   go build -ldflags '-X "main.version=${VERSION}"' -a -installsuffix nocgo \
 		   -o dockron-darwin-amd64
 
-dockron-linux-amd64:
+dockron-linux-amd64: $(GOFILES)
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 \
 		   go build -ldflags '-X "main.version=${VERSION}"' -a -installsuffix nocgo \
 		   -o dockron-linux-amd64
 
-dockron-linux-arm:
+dockron-linux-arm: $(GOFILES)
 	GOOS=linux GOARCH=arm CGO_ENABLED=0 \
 		   go build -ldflags '-X "main.version=${VERSION}"' -a -installsuffix nocgo \
 		   -o dockron-linux-arm
 
-dockron-linux-arm64:
+dockron-linux-arm64: $(GOFILES)
 	GOOS=linux GOARCH=arm64 CGO_ENABLED=0 \
 		   go build -ldflags '-X "main.version=${VERSION}"' -a -installsuffix nocgo \
 		   -o dockron-linux-arm64
@@ -124,3 +126,9 @@ docker-staged-build-arm64:
 	docker build --build-arg VERSION=${VERSION} \
 		--build-arg REPO=arm64v8 --build-arg ARCH=arm64 -t ${DOCKER_TAG}-linux-arm64 \
 		-f Dockerfile.multi-stage .
+
+.PHONY: docker-example
+docker-example:
+	# Uses multistage
+	docker-compose build
+	docker-compose up
