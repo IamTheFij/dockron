@@ -13,7 +13,7 @@ vendor:
 # Runs the application, useful while developing
 .PHONY: run
 run:
-	go run *.go
+	go run .
 
 # Output target
 dockron:

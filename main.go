@@ -3,8 +3,8 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/client"
+	dockerTypes "github.com/docker/docker/api/types"
+	dockerCient "github.com/docker/docker/client"
 	"github.com/robfig/cron/v3"
 	"golang.org/x/net/context"
 	"log"
@@ -24,11 +24,17 @@ var (
 	version = "dev"
 )
 
+// ContainerClient provides an interface for interracting with Docker
+type ContainerClient interface {
+	ContainerStart(context context.Context, containerID string, options dockerTypes.ContainerStartOptions) error
+	ContainerList(context context.Context, options dockerTypes.ContainerListOptions) ([]dockerTypes.Container, error)
+}
+
 // ContainerStartJob represents a scheduled container task
 // It contains a reference to a client, the schedule to run on, and the
 // ID of that container that should be started
 type ContainerStartJob struct {
-	Client      *client.Client
+	Client      ContainerClient
 	ContainerID string
 	Context     context.Context
 	Name        string
@@ -39,7 +45,7 @@ type ContainerStartJob struct {
 // container
 func (job ContainerStartJob) Run() {
 	log.Println("Starting:", job.Name)
-	err := job.Client.ContainerStart(job.Context, job.ContainerID, types.ContainerStartOptions{})
+	err := job.Client.ContainerStart(job.Context, job.ContainerID, dockerTypes.ContainerStartOptions{})
 	if err != nil {
 		panic(err)
 	}
@@ -47,9 +53,9 @@ func (job ContainerStartJob) Run() {
 
 // QueryScheduledJobs queries Docker for all containers with a schedule and
 // returns a list of ContainerStartJob records to be scheduled
-func QueryScheduledJobs(cli *client.Client) (jobs []ContainerStartJob) {
+func QueryScheduledJobs(client ContainerClient) (jobs []ContainerStartJob) {
 	log.Println("Scanning containers for new schedules...")
-	containers, err := cli.ContainerList(context.Background(), types.ContainerListOptions{All: true})
+	containers, err := client.ContainerList(context.Background(), dockerTypes.ContainerListOptions{All: true})
 	if err != nil {
 		panic(err)
 	}
@@ -59,7 +65,7 @@ func QueryScheduledJobs(cli *client.Client) (jobs []ContainerStartJob) {
 			jobName := strings.Join(container.Names, "/")
 			jobs = append(jobs, ContainerStartJob{
 				Schedule:    val,
-				Client:      cli,
+				Client:      client,
 				ContainerID: container.ID,
 				Context:     context.Background(),
 				Name:        jobName,
@@ -87,7 +93,7 @@ func ScheduleJobs(c *cron.Cron, jobs []ContainerStartJob) {
 
 func main() {
 	// Get a Docker Client
-	cli, err := client.NewEnvClient()
+	client, err := dockerClient.NewEnvClient()
 	if err != nil {
 		panic(err)
 	}
@@ -118,7 +124,7 @@ func main() {
 		c = cron.New()
 
 		// Schedule jobs again
-		jobs := QueryScheduledJobs(cli)
+		jobs := QueryScheduledJobs(client)
 		ScheduleJobs(c, jobs)
 		c.Start()
 
