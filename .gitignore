@@ -25,6 +25,7 @@ _testmain.go
 *.prof
 
 # Output
+coverage.out
 dockron
 dockron-*
 # deps

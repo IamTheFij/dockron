@@ -4,7 +4,7 @@ import (
 	"flag"
 	"fmt"
 	dockerTypes "github.com/docker/docker/api/types"
-	dockerCient "github.com/docker/docker/client"
+	dockerClient "github.com/docker/docker/client"
 	"github.com/robfig/cron/v3"
 	"golang.org/x/net/context"
 	"log"
