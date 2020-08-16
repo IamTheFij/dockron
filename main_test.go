@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"sort"
 	"testing"
 
 	dockerTypes "github.com/docker/docker/api/types"
@@ -12,7 +13,10 @@ import (
 
 // FakeDockerClient is used to test without interracting with Docker
 type FakeDockerClient struct {
-	FakeContainers []dockerTypes.Container
+	FakeContainers           []dockerTypes.Container
+	FakeExecIDResponse       string
+	FakeContainerExecInspect dockerTypes.ContainerExecInspect
+	FakeContainerInspect     dockerTypes.ContainerJSON
 }
 
 // ContainerStart pretends to start a container
@@ -24,18 +28,29 @@ func (fakeClient *FakeDockerClient) ContainerList(context context.Context, optio
 	return fakeClient.FakeContainers, nil
 }
 
-// NewFakeDockerClient creates an empty client
-func NewFakeDockerClient() *FakeDockerClient {
+func (fakeClient *FakeDockerClient) ContainerExecCreate(ctx context.Context, container string, config dockerTypes.ExecConfig) (dockerTypes.IDResponse, error) {
+	return dockerTypes.IDResponse{ID: fakeClient.FakeExecIDResponse}, nil
+}
+
+func (fakeClient *FakeDockerClient) ContainerExecStart(ctx context.Context, execID string, config dockerTypes.ExecStartCheck) error {
+	return nil
+}
+
+func (fakeClient *FakeDockerClient) ContainerExecInspect(ctx context.Context, execID string) (dockerTypes.ContainerExecInspect, error) {
+	return fakeClient.FakeContainerExecInspect, nil
+}
+
+func (fakeClient *FakeDockerClient) ContainerInspect(ctx context.Context, containerID string) (dockerTypes.ContainerJSON, error) {
+	return fakeClient.FakeContainerInspect, nil
+}
+
+// newFakeDockerClient creates an empty client
+func newFakeDockerClient() *FakeDockerClient {
 	return &FakeDockerClient{}
 }
 
-// NewFakeDockerClientWithContainers creates a client with the provided containers
-func NewFakeDockerClientWithContainers(containers []dockerTypes.Container) *FakeDockerClient {
-	return &FakeDockerClient{FakeContainers: containers}
-}
-
-// ErrorUnequal checks that two values are equal and fails the test if not
-func ErrorUnequal(t *testing.T, expected interface{}, actual interface{}, message string) {
+// errorUnequal checks that two values are equal and fails the test if not
+func errorUnequal(t *testing.T, expected interface{}, actual interface{}, message string) {
 	if expected != actual {
 		t.Errorf("%s Expected: %+v Actual: %+v", message, expected, actual)
 	}
@@ -44,17 +59,17 @@ func ErrorUnequal(t *testing.T, expected interface{}, actual interface{}, messag
 // TestQueryScheduledJobs checks that when querying the Docker client that we
 // create jobs for any containers with a dockron.schedule
 func TestQueryScheduledJobs(t *testing.T) {
-	client := NewFakeDockerClient()
+	client := newFakeDockerClient()
 
 	cases := []struct {
 		name           string
 		fakeContainers []dockerTypes.Container
-		expectedJobs   []ContainerStartJob
+		expectedJobs   []ContainerCronJob
 	}{
 		{
 			name:           "No containers",
 			fakeContainers: []dockerTypes.Container{},
-			expectedJobs:   []ContainerStartJob{},
+			expectedJobs:   []ContainerCronJob{},
 		},
 		{
 			name: "One container without schedule",
@@ -64,7 +79,7 @@ func TestQueryScheduledJobs(t *testing.T) {
 					ID:    "no_schedule_1",
 				},
 			},
-			expectedJobs: []ContainerStartJob{},
+			expectedJobs: []ContainerCronJob{},
 		},
 		{
 			name: "One container with schedule",
@@ -77,13 +92,13 @@ func TestQueryScheduledJobs(t *testing.T) {
 					},
 				},
 			},
-			expectedJobs: []ContainerStartJob{
+			expectedJobs: []ContainerCronJob{
 				ContainerStartJob{
-					Name:        "has_schedule_1",
-					ContainerID: "has_schedule_1",
-					Schedule:    "* * * * *",
-					Context:     context.Background(),
-					Client:      client,
+					name:        "has_schedule_1",
+					containerID: "has_schedule_1",
+					schedule:    "* * * * *",
+					context:     context.Background(),
+					client:      client,
 				},
 			},
 		},
@@ -102,13 +117,101 @@ func TestQueryScheduledJobs(t *testing.T) {
 					},
 				},
 			},
-			expectedJobs: []ContainerStartJob{
+			expectedJobs: []ContainerCronJob{
 				ContainerStartJob{
-					Name:        "has_schedule_1",
-					ContainerID: "has_schedule_1",
-					Schedule:    "* * * * *",
-					Context:     context.Background(),
-					Client:      client,
+					name:        "has_schedule_1",
+					containerID: "has_schedule_1",
+					schedule:    "* * * * *",
+					context:     context.Background(),
+					client:      client,
+				},
+			},
+		},
+		{
+			name: "Incomplete exec job, schedule only",
+			fakeContainers: []dockerTypes.Container{
+				dockerTypes.Container{
+					Names: []string{"exec_job_1"},
+					ID:    "exec_job_1",
+					Labels: map[string]string{
+						"dockron.test.schedule": "* * * * *",
+					},
+				},
+			},
+			expectedJobs: []ContainerCronJob{},
+		},
+		{
+			name: "Incomplete exec job, command only",
+			fakeContainers: []dockerTypes.Container{
+				dockerTypes.Container{
+					Names: []string{"exec_job_1"},
+					ID:    "exec_job_1",
+					Labels: map[string]string{
+						"dockron.test.command": "date",
+					},
+				},
+			},
+			expectedJobs: []ContainerCronJob{},
+		},
+		{
+			name: "Complete exec job",
+			fakeContainers: []dockerTypes.Container{
+				dockerTypes.Container{
+					Names: []string{"exec_job_1"},
+					ID:    "exec_job_1",
+					Labels: map[string]string{
+						"dockron.test.schedule": "* * * * *",
+						"dockron.test.command":  "date",
+					},
+				},
+			},
+			expectedJobs: []ContainerCronJob{
+				ContainerExecJob{
+					ContainerStartJob: ContainerStartJob{
+						name:        "exec_job_1/test",
+						containerID: "exec_job_1",
+						schedule:    "* * * * *",
+						context:     context.Background(),
+						client:      client,
+					},
+					shellCommand: "date",
+				},
+			},
+		},
+		{
+			name: "Dual exec jobs on single container",
+			fakeContainers: []dockerTypes.Container{
+				dockerTypes.Container{
+					Names: []string{"exec_job_1"},
+					ID:    "exec_job_1",
+					Labels: map[string]string{
+						"dockron.test1.schedule": "* * * * *",
+						"dockron.test1.command":  "date",
+						"dockron.test2.schedule": "* * * * *",
+						"dockron.test2.command":  "date",
+					},
+				},
+			},
+			expectedJobs: []ContainerCronJob{
+				ContainerExecJob{
+					ContainerStartJob: ContainerStartJob{
+						name:        "exec_job_1/test1",
+						containerID: "exec_job_1",
+						schedule:    "* * * * *",
+						context:     context.Background(),
+						client:      client,
+					},
+					shellCommand: "date",
+				},
+				ContainerExecJob{
+					ContainerStartJob: ContainerStartJob{
+						name:        "exec_job_1/test2",
+						containerID: "exec_job_1",
+						schedule:    "* * * * *",
+						context:     context.Background(),
+						client:      client,
+					},
+					shellCommand: "date",
 				},
 			},
 		},
@@ -123,12 +226,15 @@ func TestQueryScheduledJobs(t *testing.T) {
 			client.FakeContainers = c.fakeContainers
 
 			jobs := QueryScheduledJobs(client)
+			// Sort so we can compare each list of jobs
+			sort.Slice(jobs, func(i, j int) bool {
+				return jobs[i].UniqueName() < jobs[j].UniqueName()
+			})
 
 			t.Logf("Expected jobs: %+v, Actual jobs: %+v", c.expectedJobs, jobs)
-
-			ErrorUnequal(t, len(c.expectedJobs), len(jobs), "Job lengths don't match")
+			errorUnequal(t, len(c.expectedJobs), len(jobs), "Job lengths don't match")
 			for i, job := range jobs {
-				ErrorUnequal(t, c.expectedJobs[i], job, "Job value does not match")
+				errorUnequal(t, c.expectedJobs[i], job, "Job value does not match")
 			}
 		})
 	}
@@ -142,82 +248,82 @@ func TestScheduleJobs(t *testing.T) {
 	// Tests must be executed sequentially!
 	cases := []struct {
 		name         string
-		queriedJobs  []ContainerStartJob
-		expectedJobs []ContainerStartJob
+		queriedJobs  []ContainerCronJob
+		expectedJobs []ContainerCronJob
 	}{
 		{
 			name:         "No containers",
-			queriedJobs:  []ContainerStartJob{},
-			expectedJobs: []ContainerStartJob{},
+			queriedJobs:  []ContainerCronJob{},
+			expectedJobs: []ContainerCronJob{},
 		},
 		{
 			name: "One container with schedule",
-			queriedJobs: []ContainerStartJob{
+			queriedJobs: []ContainerCronJob{
 				ContainerStartJob{
-					Name:        "has_schedule_1",
-					ContainerID: "has_schedule_1",
-					Schedule:    "* * * * *",
+					name:        "has_schedule_1",
+					containerID: "has_schedule_1",
+					schedule:    "* * * * *",
 				},
 			},
-			expectedJobs: []ContainerStartJob{
+			expectedJobs: []ContainerCronJob{
 				ContainerStartJob{
-					Name:        "has_schedule_1",
-					ContainerID: "has_schedule_1",
-					Schedule:    "* * * * *",
+					name:        "has_schedule_1",
+					containerID: "has_schedule_1",
+					schedule:    "* * * * *",
 				},
 			},
 		},
 		{
 			name: "Add a second job",
-			queriedJobs: []ContainerStartJob{
+			queriedJobs: []ContainerCronJob{
 				ContainerStartJob{
-					Name:        "has_schedule_1",
-					ContainerID: "has_schedule_1",
-					Schedule:    "* * * * *",
+					name:        "has_schedule_1",
+					containerID: "has_schedule_1",
+					schedule:    "* * * * *",
 				},
 				ContainerStartJob{
-					Name:        "has_schedule_2",
-					ContainerID: "has_schedule_2",
-					Schedule:    "* * * * *",
+					name:        "has_schedule_2",
+					containerID: "has_schedule_2",
+					schedule:    "* * * * *",
 				},
 			},
-			expectedJobs: []ContainerStartJob{
+			expectedJobs: []ContainerCronJob{
 				ContainerStartJob{
-					Name:        "has_schedule_1",
-					ContainerID: "has_schedule_1",
-					Schedule:    "* * * * *",
+					name:        "has_schedule_1",
+					containerID: "has_schedule_1",
+					schedule:    "* * * * *",
 				},
 				ContainerStartJob{
-					Name:        "has_schedule_2",
-					ContainerID: "has_schedule_2",
-					Schedule:    "* * * * *",
+					name:        "has_schedule_2",
+					containerID: "has_schedule_2",
+					schedule:    "* * * * *",
 				},
 			},
 		},
 		{
 			name: "Replace job 1",
-			queriedJobs: []ContainerStartJob{
+			queriedJobs: []ContainerCronJob{
 				ContainerStartJob{
-					Name:        "has_schedule_1",
-					ContainerID: "has_schedule_1_prime",
-					Schedule:    "* * * * *",
+					name:        "has_schedule_1",
+					containerID: "has_schedule_1_prime",
+					schedule:    "* * * * *",
 				},
 				ContainerStartJob{
-					Name:        "has_schedule_2",
-					ContainerID: "has_schedule_2",
-					Schedule:    "* * * * *",
+					name:        "has_schedule_2",
+					containerID: "has_schedule_2",
+					schedule:    "* * * * *",
 				},
 			},
-			expectedJobs: []ContainerStartJob{
+			expectedJobs: []ContainerCronJob{
 				ContainerStartJob{
-					Name:        "has_schedule_2",
-					ContainerID: "has_schedule_2",
-					Schedule:    "* * * * *",
+					name:        "has_schedule_2",
+					containerID: "has_schedule_2",
+					schedule:    "* * * * *",
 				},
 				ContainerStartJob{
-					Name:        "has_schedule_1",
-					ContainerID: "has_schedule_1_prime",
-					Schedule:    "* * * * *",
+					name:        "has_schedule_1",
+					containerID: "has_schedule_1_prime",
+					schedule:    "* * * * *",
 				},
 			},
 		},
@@ -234,9 +340,9 @@ func TestScheduleJobs(t *testing.T) {
 			scheduledEntries := croner.Entries()
 			t.Logf("Cron entries: %+v", scheduledEntries)
 
-			ErrorUnequal(t, len(c.expectedJobs), len(scheduledEntries), "Job and entry lengths don't match")
+			errorUnequal(t, len(c.expectedJobs), len(scheduledEntries), "Job and entry lengths don't match")
 			for i, entry := range scheduledEntries {
-				ErrorUnequal(t, c.expectedJobs[i], entry.Job, "Job value does not match entry")
+				errorUnequal(t, c.expectedJobs[i], entry.Job, "Job value does not match entry")
 			}
 		})
 	}
@@ -248,17 +354,17 @@ func TestScheduleJobs(t *testing.T) {
 // TestDoLoop is close to an integration test that checks the main loop logic
 func TestDoLoop(t *testing.T) {
 	croner := cron.New()
-	client := NewFakeDockerClient()
+	client := newFakeDockerClient()
 
 	cases := []struct {
 		name           string
 		fakeContainers []dockerTypes.Container
-		expectedJobs   []ContainerStartJob
+		expectedJobs   []ContainerCronJob
 	}{
 		{
 			name:           "No containers",
 			fakeContainers: []dockerTypes.Container{},
-			expectedJobs:   []ContainerStartJob{},
+			expectedJobs:   []ContainerCronJob{},
 		},
 		{
 			name: "One container without schedule",
@@ -268,7 +374,7 @@ func TestDoLoop(t *testing.T) {
 					ID:    "no_schedule_1",
 				},
 			},
-			expectedJobs: []ContainerStartJob{},
+			expectedJobs: []ContainerCronJob{},
 		},
 		{
 			name: "One container with schedule",
@@ -281,13 +387,13 @@ func TestDoLoop(t *testing.T) {
 					},
 				},
 			},
-			expectedJobs: []ContainerStartJob{
+			expectedJobs: []ContainerCronJob{
 				ContainerStartJob{
-					Name:        "has_schedule_1",
-					ContainerID: "has_schedule_1",
-					Schedule:    "* * * * *",
-					Context:     context.Background(),
-					Client:      client,
+					name:        "has_schedule_1",
+					containerID: "has_schedule_1",
+					schedule:    "* * * * *",
+					context:     context.Background(),
+					client:      client,
 				},
 			},
 		},
@@ -306,13 +412,13 @@ func TestDoLoop(t *testing.T) {
 					},
 				},
 			},
-			expectedJobs: []ContainerStartJob{
+			expectedJobs: []ContainerCronJob{
 				ContainerStartJob{
-					Name:        "has_schedule_1",
-					ContainerID: "has_schedule_1",
-					Schedule:    "* * * * *",
-					Context:     context.Background(),
-					Client:      client,
+					name:        "has_schedule_1",
+					containerID: "has_schedule_1",
+					schedule:    "* * * * *",
+					context:     context.Background(),
+					client:      client,
 				},
 			},
 		},
@@ -334,20 +440,20 @@ func TestDoLoop(t *testing.T) {
 					},
 				},
 			},
-			expectedJobs: []ContainerStartJob{
+			expectedJobs: []ContainerCronJob{
 				ContainerStartJob{
-					Name:        "has_schedule_1",
-					ContainerID: "has_schedule_1",
-					Schedule:    "* * * * *",
-					Context:     context.Background(),
-					Client:      client,
+					name:        "has_schedule_1",
+					containerID: "has_schedule_1",
+					schedule:    "* * * * *",
+					context:     context.Background(),
+					client:      client,
 				},
 				ContainerStartJob{
-					Name:        "has_schedule_2",
-					ContainerID: "has_schedule_2",
-					Schedule:    "* * * * *",
-					Context:     context.Background(),
-					Client:      client,
+					name:        "has_schedule_2",
+					containerID: "has_schedule_2",
+					schedule:    "* * * * *",
+					context:     context.Background(),
+					client:      client,
 				},
 			},
 		},
@@ -369,20 +475,53 @@ func TestDoLoop(t *testing.T) {
 					},
 				},
 			},
-			expectedJobs: []ContainerStartJob{
+			expectedJobs: []ContainerCronJob{
 				ContainerStartJob{
-					Name:        "has_schedule_2",
-					ContainerID: "has_schedule_2",
-					Schedule:    "* * * * *",
-					Context:     context.Background(),
-					Client:      client,
+					name:        "has_schedule_2",
+					containerID: "has_schedule_2",
+					schedule:    "* * * * *",
+					context:     context.Background(),
+					client:      client,
 				},
 				ContainerStartJob{
-					Name:        "has_schedule_1",
-					ContainerID: "has_schedule_1_prime",
-					Schedule:    "* * * * *",
-					Context:     context.Background(),
-					Client:      client,
+					name:        "has_schedule_1",
+					containerID: "has_schedule_1_prime",
+					schedule:    "* * * * *",
+					context:     context.Background(),
+					client:      client,
+				},
+			},
+		},
+		{
+			name: "Remove second container and add exec to first",
+			fakeContainers: []dockerTypes.Container{
+				dockerTypes.Container{
+					Names: []string{"has_schedule_1"},
+					ID:    "has_schedule_1_prime",
+					Labels: map[string]string{
+						"dockron.schedule":      "* * * * *",
+						"dockron.test.schedule": "* * * * *",
+						"dockron.test.command":  "date",
+					},
+				},
+			},
+			expectedJobs: []ContainerCronJob{
+				ContainerStartJob{
+					name:        "has_schedule_1",
+					containerID: "has_schedule_1_prime",
+					schedule:    "* * * * *",
+					context:     context.Background(),
+					client:      client,
+				},
+				ContainerExecJob{
+					ContainerStartJob: ContainerStartJob{
+						name:        "has_schedule_1/test",
+						containerID: "has_schedule_1_prime",
+						schedule:    "* * * * *",
+						context:     context.Background(),
+						client:      client,
+					},
+					shellCommand: "date",
 				},
 			},
 		},
@@ -405,9 +544,9 @@ func TestDoLoop(t *testing.T) {
 			scheduledEntries := croner.Entries()
 			t.Logf("Cron entries: %+v", scheduledEntries)
 
-			ErrorUnequal(t, len(c.expectedJobs), len(scheduledEntries), "Job and entry lengths don't match")
+			errorUnequal(t, len(c.expectedJobs), len(scheduledEntries), "Job and entry lengths don't match")
 			for i, entry := range scheduledEntries {
-				ErrorUnequal(t, c.expectedJobs[i], entry.Job, "Job value does not match entry")
+				errorUnequal(t, c.expectedJobs[i], entry.Job, "Job value does not match entry")
 			}
 		})
 	}

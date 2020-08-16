@@ -10,9 +10,17 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
 
-  echoer:
+  start_echoer:
     image: busybox:latest
     command: ["date"]
     labels:
       # Execute every minute
       - 'dockron.schedule=* * * * *'
+
+  exec_echoer:
+    image: busybox:latest
+    command: sh -c "date > /out && tail -f /out"
+    labels:
+      # Execute every minute
+      - 'dockron.date.schedule=* * * * *'
+      - 'dockron.date.command=date >> /out'
