@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"regexp"
 	"strings"
@@ -61,7 +60,7 @@ type ContainerStartJob struct {
 // Run is executed based on the ContainerStartJob Schedule and starts the
 // container
 func (job ContainerStartJob) Run() {
-	log.Println("Starting:", job.name)
+	slog.Log("Starting: %s", job.name)
 
 	// Check if container is already running
 	containerJSON, err := job.client.ContainerInspect(
@@ -133,7 +132,7 @@ type ContainerExecJob struct {
 // Run is executed based on the ContainerStartJob Schedule and starts the
 // container
 func (job ContainerExecJob) Run() {
-	log.Println("Execing:", job.name)
+	slog.Log("Execing: %s", job.name)
 	containerJSON, err := job.client.ContainerInspect(
 		job.context,
 		job.containerID,
@@ -270,7 +269,7 @@ func ScheduleJobs(c *cron.Cron, jobs []ContainerCronJob) {
 		// Job doesn't exist yet, schedule it
 		_, err := c.AddJob(job.Schedule(), job)
 		if err == nil {
-			log.Printf(
+			slog.Log(
 				"Scheduled %s (%s) with schedule '%s'\n",
 				job.Name(),
 				job.UniqueName(),
