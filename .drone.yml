@@ -18,6 +18,7 @@ steps:
   - name: itest
     image: docker
     commands:
+      - apt-update && apt-get install -y --no-install-recommends make
       - make itest
 
   - name: notify
