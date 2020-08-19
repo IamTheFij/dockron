@@ -3,27 +3,26 @@ kind: pipeline
 name: test
 
 steps:
-  # - name: test
-  #   image: golang:1.15
-  #   commands:
-  #     - make test
-  #
-  # - name: check
-  #   image: python:3
-  #   commands:
-  #     - pip install docker-compose pre-commit
-  #     - wget -L -O /usr/bin/hadolint https://github.com/hadolint/hadolint/releases/download/v1.18.0/hadolint-Linux-x86_64
-  #     - chmod +x /usr/bin/hadolint
-  #     - make check
-
-  - name: itest
-    image: docker/compose:alpine-1.26.2
-    environment:
-      GIT_TAG_NAME: itest
-      GIT_SHA: itest
+  - name: test
+    image: golang:1.15
     commands:
-      - apk add make bash
-      - make itest
+      - make test
+
+  - name: check
+    image: python:3
+    commands:
+      - pip install docker-compose pre-commit
+      - wget -L -O /usr/bin/hadolint https://github.com/hadolint/hadolint/releases/download/v1.18.0/hadolint-Linux-x86_64
+      - chmod +x /usr/bin/hadolint
+      - make check
+
+  # - name: itest
+  #   image: docker/compose:alpine-1.26.2
+  #   environment:
+  #     VERSION: ${DRONE_TAG:-${DRONE_COMMIT}}
+  #   commands:
+  #     - apk add make bash
+  #     - make itest
 
   - name: notify
     image: drillster/drone-email
