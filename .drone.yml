@@ -24,19 +24,6 @@ steps:
   #     - apk add make bash
   #     - make itest
 
-  - name: notify
-    image: drillster/drone-email
-    settings:
-      host:
-        from_secret: SMTP_HOST  # pragma: whitelist secret
-      username:
-        from_secret: SMTP_USER  # pragma: whitelist secret
-      password:
-        from_secret: SMTP_PASS  # pragma: whitelist secret
-      from: drone@iamthefij.com
-    when:
-      status: [changed, failure]
-
 ---
 kind: pipeline
 name: publish
@@ -54,7 +41,7 @@ trigger:
 
 steps:
   - name: build
-    image: golang:1.12
+    image: golang:1.15
     environment:
       VERSION: ${DRONE_TAG:-${DRONE_COMMIT}}
     commands:
@@ -109,3 +96,28 @@ steps:
         from_secret: docker_username
       password:
         from_secret: docker_password
+
+---
+kind: pipeline
+name: notify
+
+depends_on:
+  - test
+  - publish
+
+trigger:
+  status:
+    - failure
+
+steps:
+
+  - name: notify
+    image: drillster/drone-email
+    settings:
+      host:
+        from_secret: SMTP_HOST  # pragma: whitelist secret
+      username:
+        from_secret: SMTP_USER  # pragma: whitelist secret
+      password:
+        from_secret: SMTP_PASS  # pragma: whitelist secret
+      from: drone@iamthefij.com
