@@ -9,10 +9,8 @@ steps:
       - make test
 
   - name: check
-    image: python:3-slim
+    image: python:3
     commands:
-      - apt-get update
-      - apt-get install -y --no-install-recommends make
       - pip install docker-compose pre-commit
       - make check
 
