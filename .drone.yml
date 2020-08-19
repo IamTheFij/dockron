@@ -23,6 +23,19 @@ steps:
     commands:
       - make itest
 
+  - name: notify
+    image: drillster/drone-email
+    settings:
+      host:
+        from_secret: SMTP_HOST  # pragma: whitelist secret
+      username:
+        from_secret: SMTP_USER  # pragma: whitelist secret
+      password:
+        from_secret: SMTP_PASS  # pragma: whitelist secret
+      from: drone@iamthefij.com
+    when:
+      status: [changed, failure]
+
 ---
 kind: pipeline
 name: publish
