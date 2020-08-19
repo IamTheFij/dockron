@@ -16,7 +16,7 @@ steps:
     commands:
       - apt-get update
       - apt-get install -y --no-install-recommends make
-      - pip install docker-compose
+      - pip install docker-compose pre-commit
       - make check
   - name: itest
     image: docker
