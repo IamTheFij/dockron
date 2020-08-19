@@ -32,6 +32,16 @@ Create your container and add a label in the form `'dockron.schedule=* * * * *'`
 
 Dockron will now start that container peridically on the schedule.
 
+If you have a long running container that you'd like to schedule an exec command inside of, you can do so with labels as well. Add your job in the form `dockron.<job>.schedule=* * * * *` and `dockeron.<job>.command=echo hello`. Both labels are required to create an exec job.
+
+Eg.
+
+    labels:
+        - "dockron.dates.schedule=* * * * *"
+        - "dockron.dates.command=date"
+
+_Note: Exec jobs will not log their output anywhere. Not to the host container or to Dockron. It's up to you to deal with this for now. There is also currently no way to health check these._
+
 ### Cron Expression Formatting
 
 For more information on the cron expression parsing, see the docs for [robfig/cron](https://godoc.org/github.com/robfig/cron).
@@ -55,3 +65,7 @@ Either use a separate tool in conjunction with Dockron, or use a more robust sch
 If you have go on your machine, you can simply use `make build` or `make run` to build and test Dockron. If you don't have go but you do have Docker, you can still build docker images using the provide multi-stage Dockerfile! You can kick that off with `make docker-staged-build`
 
 There is also an example `docker-compose.yml` that will use the multi-stage build to ensure an easy sample. This can be run with `make docker-example`.
+
+## Tests
+
+There are now some basic tests as well as linting and integration tests. You can run all of these by executing `make all`.

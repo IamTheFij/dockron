@@ -1,11 +1,28 @@
+---
 kind: pipeline
 name: test
 
 steps:
-  - name: build
-    image: golang:1.12
+  - name: test
+    image: golang:1.15
     commands:
-      - make build
+      - make test
+
+  - name: check
+    image: python:3
+    commands:
+      - pip install docker-compose pre-commit
+      - wget -L -O /usr/bin/hadolint https://github.com/hadolint/hadolint/releases/download/v1.18.0/hadolint-Linux-x86_64
+      - chmod +x /usr/bin/hadolint
+      - make check
+
+  # - name: itest
+  #   image: docker/compose:alpine-1.26.2
+  #   environment:
+  #     VERSION: ${DRONE_TAG:-${DRONE_COMMIT}}
+  #   commands:
+  #     - apk add make bash
+  #     - make itest
 
 ---
 kind: pipeline
@@ -24,7 +41,9 @@ trigger:
 
 steps:
   - name: build
-    image: golang:1.12
+    image: golang:1.15
+    environment:
+      VERSION: ${DRONE_TAG:-${DRONE_COMMIT}}
     commands:
       - make build-linux-static
 
@@ -77,3 +96,28 @@ steps:
         from_secret: docker_username
       password:
         from_secret: docker_password
+
+---
+kind: pipeline
+name: notify
+
+depends_on:
+  - test
+  - publish
+
+trigger:
+  status:
+    - failure
+
+steps:
+
+  - name: notify
+    image: drillster/drone-email
+    settings:
+      host:
+        from_secret: SMTP_HOST  # pragma: whitelist secret
+      username:
+        from_secret: SMTP_USER  # pragma: whitelist secret
+      password:
+        from_secret: SMTP_PASS  # pragma: whitelist secret
+      from: drone@iamthefij.com

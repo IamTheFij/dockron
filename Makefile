@@ -1,4 +1,3 @@
-.PHONY: test all
 DOCKER_TAG ?= dockron-dev-${USER}
 GIT_TAG_NAME := $(shell git tag -l --contains HEAD)
 GIT_SHA := $(shell git rev-parse HEAD)
@@ -8,6 +7,9 @@ GOFILES = *.go go.mod go.sum
 
 .PHONY: default
 default: build
+
+.PHONY: all
+all: check test itest
 
 # Downloads dependencies into vendor directory
 vendor: $(GOFILES)
@@ -22,8 +24,12 @@ run:
 test:
 	go test -coverprofile=coverage.out
 	go tool cover -func=coverage.out
-	# @go tool cover -func=coverage.out | awk -v target=80.0% \
+	@go tool cover -func=coverage.out | awk -v target=75.0% \
 		'/^total:/ { print "Total coverage: " $$3 " Minimum coverage: " target; if ($$3+0.0 >= target+0.0) print "ok"; else { print "fail"; exit 1; } }'
+
+.PHONY: itest
+itest:
+	./itest/itest.sh
 
 # Installs pre-commit hooks
 .PHONY: install-hooks

@@ -4,7 +4,7 @@ version: '3'
 services:
   dockron:
     build:
-      context: .
+      context: ../
       dockerfile: ./Dockerfile.multi-stage
     command: ["-watch", "10s", "-debug"]
     volumes:
@@ -12,15 +12,19 @@ services:
 
   start_echoer:
     image: busybox:latest
-    command: ["date"]
+    command: sh -c "echo ok | tee -a /result.txt"
+    volumes:
+      - "./start_result.txt:/result.txt"
     labels:
       # Execute every minute
       - 'dockron.schedule=* * * * *'
 
   exec_echoer:
     image: busybox:latest
-    command: sh -c "date > /out && tail -f /out"
+    command: sh -c "tail -f /result.txt"
+    volumes:
+      - "./exec_result.txt:/result.txt"
     labels:
       # Execute every minute
-      - 'dockron.date.schedule=* * * * *'
-      - 'dockron.date.command=date >> /out'
+      - 'dockron.test.schedule=* * * * *'
+      - 'dockron.test.command=echo ok >> /result.txt'

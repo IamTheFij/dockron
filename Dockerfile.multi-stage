@@ -1,5 +1,5 @@
 ARG REPO=library
-FROM golang:1.12-alpine AS builder
+FROM golang:1.15-alpine AS builder
 
 # hadolint ignore=DL3018
 RUN apk add --no-cache git
@@ -11,6 +11,7 @@ COPY ./go.mod ./go.sum /app/
 RUN go mod download
 
 COPY ./main.go /app/
+COPY ./slog /app/slog
 
 ARG ARCH=amd64
 ARG VERSION=dev
