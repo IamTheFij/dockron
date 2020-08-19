@@ -18,7 +18,7 @@ steps:
   - name: itest
     image: docker/compose:alpine-1.26.2
     commands:
-      - apk add make
+      - apk add make git
       - make itest
 
   - name: notify
