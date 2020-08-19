@@ -12,7 +12,8 @@ steps:
     image: python:3
     commands:
       - pip install docker-compose pre-commit
-      - make check
+      # This image doesn't have docker, so we skip Hadolint
+      - env SKIP=hadolint make check
 
   - name: itest
     image: docker
