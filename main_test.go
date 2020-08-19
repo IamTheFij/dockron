@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"reflect"
 	"sort"
 	"testing"
 
@@ -11,46 +12,176 @@ import (
 	"golang.org/x/net/context"
 )
 
+var (
+	// ContainerJSON results for a running container
+	runningContainerInfo = dockerTypes.ContainerJSON{
+		ContainerJSONBase: &dockerTypes.ContainerJSONBase{
+			State: &dockerTypes.ContainerState{
+				Running: true,
+			},
+		},
+	}
+	// ContainerJSON results for a stopped container
+	stoppedContainerInfo = dockerTypes.ContainerJSON{
+		ContainerJSONBase: &dockerTypes.ContainerJSONBase{
+			State: &dockerTypes.ContainerState{
+				Running: false,
+			},
+		},
+	}
+)
+
+// FakeCall represents a faked method call
+type FakeCall []interface{}
+
+// FakeResult gives results of a fake method
+type FakeResult []interface{}
+
 // FakeDockerClient is used to test without interracting with Docker
 type FakeDockerClient struct {
-	FakeContainers           []dockerTypes.Container
-	FakeExecIDResponse       string
-	FakeContainerExecInspect dockerTypes.ContainerExecInspect
-	FakeContainerInspect     dockerTypes.ContainerJSON
+	FakeResults map[string][]FakeResult
+	FakeCalls   map[string][]FakeCall
 }
 
-// ContainerStart pretends to start a container
-func (fakeClient *FakeDockerClient) ContainerStart(context context.Context, containerID string, options dockerTypes.ContainerStartOptions) error {
-	return nil
+func (fakeClient FakeDockerClient) AssertFakeCalls(t *testing.T, expectedCalls map[string][]FakeCall, message string) {
+	if !reflect.DeepEqual(expectedCalls, fakeClient.FakeCalls) {
+		t.Errorf(
+			"%s: Calls are not as expected. Expected %+v Actual %+v",
+			message,
+			expectedCalls,
+			fakeClient.FakeCalls,
+		)
+	}
+	/*
+			 * for method, calls := range fakeClient.FakeCalls {
+			 * 	exCalls, ok := expectedCalls[method]
+			 * 	if !ok {
+			 * 		// We did not expect these calls
+			 * 		t.Errorf(
+			 * 			"%s: Calls made to %s but none expected. Actual %+v",
+			 * 			message,
+			 * 			method,
+			 * 			calls,
+			 * 		)
+			 * 	}
+			 * 	if len(calls) != len(exCalls) {
+			 * 		t.Errorf(
+			 * 			"%s: Number of calls to %s are not as expected. Expected %+v Actual %+v",
+			 * 			message,
+			 * 			method,
+			 * 			exCalls,
+			 * 			calls,
+			 * 		)
+			 * 	}
+		     *
+			 * 	#<{(|
+			 * 				 * for i, call := range calls {
+			 * 				 * 	exCall := exCalls[i]
+			 * 				 * 	if call != exCall {
+			 * 		         *
+			 * 				 * 	}
+			 * 				 * }
+			 * 	|)}>#
+		     *
+			 * 	if !reflect.DeepEqual(calls, exCalls) {
+			 * 		// The calls to the method aren't what we expected
+			 * 		t.Errorf(
+			 * 			"%s: Calls to %s are not as expected. Expected %+v Actual %+v",
+			 * 			message,
+			 * 			method,
+			 * 			exCalls,
+			 * 			calls,
+			 * 		)
+			 * 	}
+			 * 	// Remove method from expected calls so we can see if any weren't called later
+			 * 	delete(expectedCalls, method)
+			 * }
+	*/
 }
 
-func (fakeClient *FakeDockerClient) ContainerList(context context.Context, options dockerTypes.ContainerListOptions) ([]dockerTypes.Container, error) {
-	return fakeClient.FakeContainers, nil
+func (fakeClient *FakeDockerClient) called(method string, v ...interface{}) FakeResult {
+	if fakeClient.FakeCalls == nil {
+		fakeClient.FakeCalls = map[string][]FakeCall{}
+	}
+	// Log method call
+	fakeClient.FakeCalls[method] = append(fakeClient.FakeCalls[method], v)
+	// Get fake results
+	results := fakeClient.FakeResults[method][0]
+	// Remove fake result
+	fakeClient.FakeResults[method] = fakeClient.FakeResults[method][1:]
+	// Return fake results
+	return results
 }
 
-func (fakeClient *FakeDockerClient) ContainerExecCreate(ctx context.Context, container string, config dockerTypes.ExecConfig) (dockerTypes.IDResponse, error) {
-	return dockerTypes.IDResponse{ID: fakeClient.FakeExecIDResponse}, nil
+func (fakeClient *FakeDockerClient) ContainerStart(context context.Context, containerID string, options dockerTypes.ContainerStartOptions) (e error) {
+	results := fakeClient.called("ContainerStart", context, containerID, options)
+	if results[0] != nil {
+		e = results[0].(error)
+	}
+	return
 }
 
-func (fakeClient *FakeDockerClient) ContainerExecStart(ctx context.Context, execID string, config dockerTypes.ExecStartCheck) error {
-	return nil
+func (fakeClient *FakeDockerClient) ContainerList(context context.Context, options dockerTypes.ContainerListOptions) (c []dockerTypes.Container, e error) {
+	results := fakeClient.called("ContainerList", context, options)
+	if results[0] != nil {
+		c = results[0].([]dockerTypes.Container)
+	}
+	if results[1] != nil {
+		e = results[1].(error)
+	}
+	return
 }
 
-func (fakeClient *FakeDockerClient) ContainerExecInspect(ctx context.Context, execID string) (dockerTypes.ContainerExecInspect, error) {
-	return fakeClient.FakeContainerExecInspect, nil
+func (fakeClient *FakeDockerClient) ContainerExecCreate(ctx context.Context, container string, config dockerTypes.ExecConfig) (r dockerTypes.IDResponse, e error) {
+	results := fakeClient.called("ContainerExecCreate", ctx, container, config)
+	if results[0] != nil {
+		r = results[0].(dockerTypes.IDResponse)
+	}
+	if results[1] != nil {
+		e = results[1].(error)
+	}
+	return
 }
 
-func (fakeClient *FakeDockerClient) ContainerInspect(ctx context.Context, containerID string) (dockerTypes.ContainerJSON, error) {
-	return fakeClient.FakeContainerInspect, nil
+func (fakeClient *FakeDockerClient) ContainerExecStart(ctx context.Context, execID string, config dockerTypes.ExecStartCheck) (e error) {
+	results := fakeClient.called("ContainerExecStart", ctx, execID, config)
+	if results[0] != nil {
+		e = results[0].(error)
+	}
+	return
 }
 
-// newFakeDockerClient creates an empty client
-func newFakeDockerClient() *FakeDockerClient {
-	return &FakeDockerClient{}
+func (fakeClient *FakeDockerClient) ContainerExecInspect(ctx context.Context, execID string) (r dockerTypes.ContainerExecInspect, e error) {
+	results := fakeClient.called("ContainerExecInspect", ctx, execID)
+	if results[0] != nil {
+		r = results[0].(dockerTypes.ContainerExecInspect)
+	}
+	if results[1] != nil {
+		e = results[1].(error)
+	}
+	return
 }
 
-// errorUnequal checks that two values are equal and fails the test if not
-func errorUnequal(t *testing.T, expected interface{}, actual interface{}, message string) {
+func (fakeClient *FakeDockerClient) ContainerInspect(ctx context.Context, containerID string) (r dockerTypes.ContainerJSON, e error) {
+	results := fakeClient.called("ContainerInspect", ctx, containerID)
+	if results[0] != nil {
+		r = results[0].(dockerTypes.ContainerJSON)
+	}
+	if results[1] != nil {
+		e = results[1].(error)
+	}
+	return
+}
+
+// NewFakeDockerClient creates an empty client
+func NewFakeDockerClient() *FakeDockerClient {
+	return &FakeDockerClient{
+		FakeResults: map[string][]FakeResult{},
+	}
+}
+
+// ErrorUnequal checks that two values are equal and fails the test if not
+func ErrorUnequal(t *testing.T, expected interface{}, actual interface{}, message string) {
 	if expected != actual {
 		t.Errorf("%s Expected: %+v Actual: %+v", message, expected, actual)
 	}
@@ -59,7 +190,7 @@ func errorUnequal(t *testing.T, expected interface{}, actual interface{}, messag
 // TestQueryScheduledJobs checks that when querying the Docker client that we
 // create jobs for any containers with a dockron.schedule
 func TestQueryScheduledJobs(t *testing.T) {
-	client := newFakeDockerClient()
+	client := NewFakeDockerClient()
 
 	cases := []struct {
 		name           string
@@ -223,7 +354,9 @@ func TestQueryScheduledJobs(t *testing.T) {
 
 			// Load fake containers
 			t.Logf("Fake containers: %+v", c.fakeContainers)
-			client.FakeContainers = c.fakeContainers
+			client.FakeResults["ContainerList"] = []FakeResult{
+				FakeResult{c.fakeContainers, nil},
+			}
 
 			jobs := QueryScheduledJobs(client)
 			// Sort so we can compare each list of jobs
@@ -232,9 +365,9 @@ func TestQueryScheduledJobs(t *testing.T) {
 			})
 
 			t.Logf("Expected jobs: %+v, Actual jobs: %+v", c.expectedJobs, jobs)
-			errorUnequal(t, len(c.expectedJobs), len(jobs), "Job lengths don't match")
+			ErrorUnequal(t, len(c.expectedJobs), len(jobs), "Job lengths don't match")
 			for i, job := range jobs {
-				errorUnequal(t, c.expectedJobs[i], job, "Job value does not match")
+				ErrorUnequal(t, c.expectedJobs[i], job, "Job value does not match")
 			}
 		})
 	}
@@ -340,9 +473,9 @@ func TestScheduleJobs(t *testing.T) {
 			scheduledEntries := croner.Entries()
 			t.Logf("Cron entries: %+v", scheduledEntries)
 
-			errorUnequal(t, len(c.expectedJobs), len(scheduledEntries), "Job and entry lengths don't match")
+			ErrorUnequal(t, len(c.expectedJobs), len(scheduledEntries), "Job and entry lengths don't match")
 			for i, entry := range scheduledEntries {
-				errorUnequal(t, c.expectedJobs[i], entry.Job, "Job value does not match entry")
+				ErrorUnequal(t, c.expectedJobs[i], entry.Job, "Job value does not match entry")
 			}
 		})
 	}
@@ -354,7 +487,7 @@ func TestScheduleJobs(t *testing.T) {
 // TestDoLoop is close to an integration test that checks the main loop logic
 func TestDoLoop(t *testing.T) {
 	croner := cron.New()
-	client := newFakeDockerClient()
+	client := NewFakeDockerClient()
 
 	cases := []struct {
 		name           string
@@ -533,7 +666,9 @@ func TestDoLoop(t *testing.T) {
 
 			// Load fake containers
 			t.Logf("Fake containers: %+v", c.fakeContainers)
-			client.FakeContainers = c.fakeContainers
+			client.FakeResults["ContainerList"] = []FakeResult{
+				FakeResult{c.fakeContainers, nil},
+			}
 
 			// Execute loop iteration loop
 			jobs := QueryScheduledJobs(client)
@@ -544,13 +679,288 @@ func TestDoLoop(t *testing.T) {
 			scheduledEntries := croner.Entries()
 			t.Logf("Cron entries: %+v", scheduledEntries)
 
-			errorUnequal(t, len(c.expectedJobs), len(scheduledEntries), "Job and entry lengths don't match")
+			ErrorUnequal(t, len(c.expectedJobs), len(scheduledEntries), "Job and entry lengths don't match")
 			for i, entry := range scheduledEntries {
-				errorUnequal(t, c.expectedJobs[i], entry.Job, "Job value does not match entry")
+				ErrorUnequal(t, c.expectedJobs[i], entry.Job, "Job value does not match entry")
 			}
 		})
 	}
 
 	// Make sure the cron stops
 	croner.Stop()
+}
+
+// TestRunExecJobs does some verification on handling of exec jobs
+// These tests aren't great because there are no return values to check
+// but some test is better than no test! Future maybe these can be moved
+// to a subpackage that offers a single function for interfacing with the
+// Docker client to start or exec a container so that Dockron needn't care.
+func TestRunExecJobs(t *testing.T) {
+
+	var jobContext context.Context
+	jobContainerID := "container_id"
+	jobCommand := "true"
+
+	cases := []struct {
+		name          string
+		client        *FakeDockerClient
+		expectPanic   bool
+		expectedCalls map[string][]FakeCall
+	}{
+		{
+			name: "Initial inspect call raises error",
+			client: &FakeDockerClient{
+				FakeResults: map[string][]FakeResult{
+					"ContainerInspect": []FakeResult{
+						FakeResult{nil, fmt.Errorf("error")},
+					},
+				},
+			},
+			expectedCalls: map[string][]FakeCall{
+				"ContainerInspect": []FakeCall{
+					FakeCall{jobContext, jobContainerID},
+				},
+			},
+			expectPanic: true,
+		},
+		{
+			name: "Handle container not running",
+			client: &FakeDockerClient{
+				FakeResults: map[string][]FakeResult{
+					"ContainerInspect": []FakeResult{
+						FakeResult{stoppedContainerInfo, nil},
+					},
+				},
+			},
+			expectedCalls: map[string][]FakeCall{
+				"ContainerInspect": []FakeCall{
+					FakeCall{jobContext, jobContainerID},
+				},
+			},
+		},
+		{
+			name: "Handle error creating exec",
+			client: &FakeDockerClient{
+				FakeResults: map[string][]FakeResult{
+					"ContainerInspect": []FakeResult{
+						FakeResult{runningContainerInfo, nil},
+					},
+					"ContainerExecCreate": []FakeResult{
+						FakeResult{nil, fmt.Errorf("fail")},
+					},
+				},
+			},
+			expectedCalls: map[string][]FakeCall{
+				"ContainerInspect": []FakeCall{
+					FakeCall{jobContext, jobContainerID},
+				},
+				"ContainerExecCreate": []FakeCall{
+					FakeCall{
+						jobContext,
+						jobContainerID,
+						dockerTypes.ExecConfig{
+							Cmd: []string{"sh", "-c", jobCommand},
+						},
+					},
+				},
+			},
+			expectPanic: true,
+		},
+		{
+			name: "Fail starting exec container",
+			client: &FakeDockerClient{
+				FakeResults: map[string][]FakeResult{
+					"ContainerInspect": []FakeResult{
+						FakeResult{runningContainerInfo, nil},
+					},
+					"ContainerExecCreate": []FakeResult{
+						FakeResult{dockerTypes.IDResponse{ID: "id"}, nil},
+					},
+					"ContainerExecStart": []FakeResult{
+						FakeResult{fmt.Errorf("fail")},
+					},
+				},
+			},
+			expectedCalls: map[string][]FakeCall{
+				"ContainerInspect": []FakeCall{
+					FakeCall{jobContext, jobContainerID},
+				},
+				"ContainerExecCreate": []FakeCall{
+					FakeCall{
+						jobContext,
+						jobContainerID,
+						dockerTypes.ExecConfig{
+							Cmd: []string{"sh", "-c", jobCommand},
+						},
+					},
+				},
+				"ContainerExecStart": []FakeCall{
+					FakeCall{jobContext, "id", dockerTypes.ExecStartCheck{}},
+				},
+			},
+			expectPanic: true,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			log.Printf("Running %s", t.Name())
+
+			// Create test job
+			job := ContainerExecJob{
+				ContainerStartJob: ContainerStartJob{
+					name:        "test_job",
+					context:     jobContext,
+					client:      c.client,
+					containerID: jobContainerID,
+				},
+				shellCommand: jobCommand,
+			}
+
+			defer func() {
+				// Recover from panics, if there were any
+				recover()
+				c.client.AssertFakeCalls(t, c.expectedCalls, "Failed")
+			}()
+			job.Run()
+			if c.expectPanic {
+				t.Errorf("Expected panic but got none")
+			}
+		})
+	}
+}
+
+// TestRunStartJobs does some verification on handling of start jobs
+// These tests aren't great because there are no return values to check
+// but some test is better than no test! Future maybe these can be moved
+// to a subpackage that offers a single function for interfacing with the
+// Docker client to start or exec a container so that Dockron needn't care.
+func TestRunStartJobs(t *testing.T) {
+	var jobContext context.Context
+	jobContainerID := "container_id"
+
+	cases := []struct {
+		name          string
+		client        *FakeDockerClient
+		expectPanic   bool
+		expectedCalls map[string][]FakeCall
+	}{
+		{
+			name: "Initial inspect call raises error",
+			client: &FakeDockerClient{
+				FakeResults: map[string][]FakeResult{
+					"ContainerInspect": []FakeResult{
+						FakeResult{nil, fmt.Errorf("error")},
+					},
+				},
+			},
+			expectedCalls: map[string][]FakeCall{
+				"ContainerInspect": []FakeCall{
+					FakeCall{jobContext, jobContainerID},
+				},
+			},
+			expectPanic: true,
+		},
+		{
+			name: "Handle container already running",
+			client: &FakeDockerClient{
+				FakeResults: map[string][]FakeResult{
+					"ContainerInspect": []FakeResult{
+						FakeResult{
+							runningContainerInfo,
+							nil,
+						},
+					},
+				},
+			},
+			expectedCalls: map[string][]FakeCall{
+				"ContainerInspect": []FakeCall{
+					FakeCall{jobContext, jobContainerID},
+				},
+			},
+		},
+		{
+			name: "Handle error starting container",
+			client: &FakeDockerClient{
+				FakeResults: map[string][]FakeResult{
+					"ContainerInspect": []FakeResult{
+						FakeResult{
+							stoppedContainerInfo,
+							nil,
+						},
+					},
+					// "ContainerStart": []FakeResult{FakeResult{nil}},
+					"ContainerStart": []FakeResult{FakeResult{fmt.Errorf("fail")}},
+				},
+			},
+			expectedCalls: map[string][]FakeCall{
+				"ContainerInspect": []FakeCall{
+					FakeCall{jobContext, jobContainerID},
+				},
+				"ContainerStart": []FakeCall{
+					FakeCall{jobContext, jobContainerID, dockerTypes.ContainerStartOptions{}},
+				},
+			},
+		},
+		{
+			name: "Succesfully start a container",
+			client: &FakeDockerClient{
+				FakeResults: map[string][]FakeResult{
+					"ContainerInspect": []FakeResult{
+						FakeResult{
+							stoppedContainerInfo,
+							nil,
+						},
+						FakeResult{
+							runningContainerInfo,
+							nil,
+						},
+						FakeResult{
+							stoppedContainerInfo,
+							nil,
+						},
+					},
+					"ContainerStart": []FakeResult{FakeResult{nil}},
+				},
+			},
+			expectedCalls: map[string][]FakeCall{
+				"ContainerInspect": []FakeCall{
+					FakeCall{jobContext, jobContainerID},
+					FakeCall{jobContext, jobContainerID},
+					FakeCall{jobContext, jobContainerID},
+				},
+				"ContainerStart": []FakeCall{
+					FakeCall{jobContext, jobContainerID, dockerTypes.ContainerStartOptions{}},
+				},
+			},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			log.Printf("Running %s", t.Name())
+
+			// Create test job
+			job := ContainerStartJob{
+				name:        "test_job",
+				context:     jobContext,
+				client:      c.client,
+				containerID: jobContainerID,
+			}
+
+			defer func() {
+				// Recover from panics, if there were any
+				recover()
+				c.client.AssertFakeCalls(t, c.expectedCalls, "Failed")
+				// ErrorUnequal(t, c.expectedCalls, c.client.FakeCalls, "Unexpected calls")
+			}()
+
+			job.Run()
+
+			if c.expectPanic {
+				t.Errorf("Expected panic but got none")
+			}
+
+		})
+	}
 }
