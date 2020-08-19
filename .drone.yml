@@ -101,6 +101,10 @@ steps:
 kind: pipeline
 name: notify
 
+depends_on:
+  - test
+  - publish
+
 trigger:
   status:
     - failure
