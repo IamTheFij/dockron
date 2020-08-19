@@ -43,62 +43,19 @@ type FakeDockerClient struct {
 	FakeCalls   map[string][]FakeCall
 }
 
+// AssertFakeCalls checks expected against actual calls to fake methods
 func (fakeClient FakeDockerClient) AssertFakeCalls(t *testing.T, expectedCalls map[string][]FakeCall, message string) {
-	if !reflect.DeepEqual(expectedCalls, fakeClient.FakeCalls) {
+	if !reflect.DeepEqual(fakeClient.FakeCalls, expectedCalls) {
 		t.Errorf(
-			"%s: Calls are not as expected. Expected %+v Actual %+v",
+			"%s: Expected and actual calls do not match. Expected %+v Actual %+v",
 			message,
 			expectedCalls,
 			fakeClient.FakeCalls,
 		)
 	}
-	/*
-			 * for method, calls := range fakeClient.FakeCalls {
-			 * 	exCalls, ok := expectedCalls[method]
-			 * 	if !ok {
-			 * 		// We did not expect these calls
-			 * 		t.Errorf(
-			 * 			"%s: Calls made to %s but none expected. Actual %+v",
-			 * 			message,
-			 * 			method,
-			 * 			calls,
-			 * 		)
-			 * 	}
-			 * 	if len(calls) != len(exCalls) {
-			 * 		t.Errorf(
-			 * 			"%s: Number of calls to %s are not as expected. Expected %+v Actual %+v",
-			 * 			message,
-			 * 			method,
-			 * 			exCalls,
-			 * 			calls,
-			 * 		)
-			 * 	}
-		     *
-			 * 	#<{(|
-			 * 				 * for i, call := range calls {
-			 * 				 * 	exCall := exCalls[i]
-			 * 				 * 	if call != exCall {
-			 * 		         *
-			 * 				 * 	}
-			 * 				 * }
-			 * 	|)}>#
-		     *
-			 * 	if !reflect.DeepEqual(calls, exCalls) {
-			 * 		// The calls to the method aren't what we expected
-			 * 		t.Errorf(
-			 * 			"%s: Calls to %s are not as expected. Expected %+v Actual %+v",
-			 * 			message,
-			 * 			method,
-			 * 			exCalls,
-			 * 			calls,
-			 * 		)
-			 * 	}
-			 * 	// Remove method from expected calls so we can see if any weren't called later
-			 * 	delete(expectedCalls, method)
-			 * }
-	*/
 }
 
+// called is a helper method to get return values and log the method call
 func (fakeClient *FakeDockerClient) called(method string, v ...interface{}) FakeResult {
 	if fakeClient.FakeCalls == nil {
 		fakeClient.FakeCalls = map[string][]FakeCall{}
@@ -800,6 +757,86 @@ func TestRunExecJobs(t *testing.T) {
 			},
 			expectPanic: true,
 		},
+		{
+			name: "Successfully start an exec job fail on status",
+			client: &FakeDockerClient{
+				FakeResults: map[string][]FakeResult{
+					"ContainerInspect": []FakeResult{
+						FakeResult{runningContainerInfo, nil},
+					},
+					"ContainerExecCreate": []FakeResult{
+						FakeResult{dockerTypes.IDResponse{ID: "id"}, nil},
+					},
+					"ContainerExecStart": []FakeResult{
+						FakeResult{nil},
+					},
+					"ContainerExecInspect": []FakeResult{
+						FakeResult{nil, fmt.Errorf("fail")},
+					},
+				},
+			},
+			expectedCalls: map[string][]FakeCall{
+				"ContainerInspect": []FakeCall{
+					FakeCall{jobContext, jobContainerID},
+				},
+				"ContainerExecCreate": []FakeCall{
+					FakeCall{
+						jobContext,
+						jobContainerID,
+						dockerTypes.ExecConfig{
+							Cmd: []string{"sh", "-c", jobCommand},
+						},
+					},
+				},
+				"ContainerExecStart": []FakeCall{
+					FakeCall{jobContext, "id", dockerTypes.ExecStartCheck{}},
+				},
+				"ContainerExecInspect": []FakeCall{
+					FakeCall{jobContext, "id"},
+				},
+			},
+		},
+		{
+			name: "Successfully start an exec job and run to completion",
+			client: &FakeDockerClient{
+				FakeResults: map[string][]FakeResult{
+					"ContainerInspect": []FakeResult{
+						FakeResult{runningContainerInfo, nil},
+					},
+					"ContainerExecCreate": []FakeResult{
+						FakeResult{dockerTypes.IDResponse{ID: "id"}, nil},
+					},
+					"ContainerExecStart": []FakeResult{
+						FakeResult{nil},
+					},
+					"ContainerExecInspect": []FakeResult{
+						FakeResult{dockerTypes.ContainerExecInspect{Running: true}, nil},
+						FakeResult{dockerTypes.ContainerExecInspect{Running: false}, nil},
+					},
+				},
+			},
+			expectedCalls: map[string][]FakeCall{
+				"ContainerInspect": []FakeCall{
+					FakeCall{jobContext, jobContainerID},
+				},
+				"ContainerExecCreate": []FakeCall{
+					FakeCall{
+						jobContext,
+						jobContainerID,
+						dockerTypes.ExecConfig{
+							Cmd: []string{"sh", "-c", jobCommand},
+						},
+					},
+				},
+				"ContainerExecStart": []FakeCall{
+					FakeCall{jobContext, "id", dockerTypes.ExecStartCheck{}},
+				},
+				"ContainerExecInspect": []FakeCall{
+					FakeCall{jobContext, "id"},
+					FakeCall{jobContext, "id"},
+				},
+			},
+		},
 	}
 
 	for _, c := range cases {
@@ -819,7 +856,10 @@ func TestRunExecJobs(t *testing.T) {
 
 			defer func() {
 				// Recover from panics, if there were any
-				recover()
+				if err := recover(); err != nil {
+					t.Log("Recovered from panic")
+					t.Log(err)
+				}
 				c.client.AssertFakeCalls(t, c.expectedCalls, "Failed")
 			}()
 			job.Run()
@@ -866,10 +906,7 @@ func TestRunStartJobs(t *testing.T) {
 			client: &FakeDockerClient{
 				FakeResults: map[string][]FakeResult{
 					"ContainerInspect": []FakeResult{
-						FakeResult{
-							runningContainerInfo,
-							nil,
-						},
+						FakeResult{runningContainerInfo, nil},
 					},
 				},
 			},
@@ -884,12 +921,8 @@ func TestRunStartJobs(t *testing.T) {
 			client: &FakeDockerClient{
 				FakeResults: map[string][]FakeResult{
 					"ContainerInspect": []FakeResult{
-						FakeResult{
-							stoppedContainerInfo,
-							nil,
-						},
+						FakeResult{stoppedContainerInfo, nil},
 					},
-					// "ContainerStart": []FakeResult{FakeResult{nil}},
 					"ContainerStart": []FakeResult{FakeResult{fmt.Errorf("fail")}},
 				},
 			},
@@ -907,18 +940,9 @@ func TestRunStartJobs(t *testing.T) {
 			client: &FakeDockerClient{
 				FakeResults: map[string][]FakeResult{
 					"ContainerInspect": []FakeResult{
-						FakeResult{
-							stoppedContainerInfo,
-							nil,
-						},
-						FakeResult{
-							runningContainerInfo,
-							nil,
-						},
-						FakeResult{
-							stoppedContainerInfo,
-							nil,
-						},
+						FakeResult{stoppedContainerInfo, nil},
+						FakeResult{runningContainerInfo, nil},
+						FakeResult{stoppedContainerInfo, nil},
 					},
 					"ContainerStart": []FakeResult{FakeResult{nil}},
 				},
@@ -952,11 +976,8 @@ func TestRunStartJobs(t *testing.T) {
 				// Recover from panics, if there were any
 				recover()
 				c.client.AssertFakeCalls(t, c.expectedCalls, "Failed")
-				// ErrorUnequal(t, c.expectedCalls, c.client.FakeCalls, "Unexpected calls")
 			}()
-
 			job.Run()
-
 			if c.expectPanic {
 				t.Errorf("Expected panic but got none")
 			}

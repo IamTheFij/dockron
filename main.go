@@ -168,8 +168,11 @@ func (job ContainerExecJob) Run() {
 			job.context,
 			execID.ID,
 		)
+		slog.Debug("Exec info: %+v", execInfo)
 		if err != nil {
-			panic(err)
+			// Nothing we can do if we got an error here, so let's go
+			slog.WarnOnErr(err, "Could not get status for exec job %s", job.name)
+			return
 		}
 		time.Sleep(1 * time.Second)
 	}
