@@ -21,6 +21,7 @@ steps:
     commands:
       - pwd
       - ls -l
+      - ls -l ./itest/
       - apk add make git
       - make itest
 
