@@ -16,9 +16,9 @@ steps:
       - env SKIP=hadolint make check
 
   - name: itest
-    image: docker
+    image: docker/compose:alpine-1.26.2
     commands:
-      - apt-update && apt-get install -y --no-install-recommends make
+      - apk add make
       - make itest
 
   - name: notify
