@@ -30,3 +30,6 @@ dockron
 dockron-*
 # deps
 vendor/
+
+# Test output
+itest/*_result.txt
