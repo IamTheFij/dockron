@@ -32,6 +32,16 @@ Create your container and add a label in the form `'dockron.schedule=* * * * *'`
 
 Dockron will now start that container peridically on the schedule.
 
+If you have a long running container that you'd like to schedule an exec command inside of, you can do so with labels as well. Add your job in the form `dockron.<job>.schedule=* * * * *` and `dockeron.<job>.command=echo hello`. Both labels are required to create an exec job.
+
+Eg.
+
+    labels:
+        - "dockron.dates.schedule=* * * * *"
+        - "dockron.dates.command=date"
+
+_Note: Exec jobs will not log their output anywhere. Not to the host container or to Dockron. It's up to you to deal with this for now. There is also currently no way to health check these._
+
 ### Cron Expression Formatting
 
 For more information on the cron expression parsing, see the docs for [robfig/cron](https://godoc.org/github.com/robfig/cron).
