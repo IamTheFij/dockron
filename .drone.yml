@@ -12,8 +12,8 @@ steps:
     image: python:3
     commands:
       - pip install docker-compose pre-commit
-      # This image doesn't have docker, so we skip Hadolint
-      - env SKIP=hadolint make check
+      - wget -L -o /usr/bin/hadolint https://github.com/hadolint/hadolint/releases/download/v1.18.0/hadolint-Linux-x86_64
+      - make check
 
   - name: itest
     image: docker/compose:alpine-1.26.2
