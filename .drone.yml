@@ -1,11 +1,27 @@
+---
 kind: pipeline
 name: test
 
 steps:
   - name: build
-    image: golang:1.12
+    image: golang:1.15
     commands:
       - make build
+  - name: test
+    image: golang:1.15
+    commands:
+      - make test
+  - name: check
+    image: python:3-slim
+    commands:
+      - apt-get update
+      - apt-get install -y --no-install-recommends make
+      - pip install docker-compose
+      - make check
+  - name: itest
+    image: docker
+    commands:
+      - make itest
 
 ---
 kind: pipeline
