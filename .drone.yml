@@ -27,6 +27,10 @@ steps:
       - apk add make bash
       - make itest
 
+volumes:
+  - name: dockersock
+    host:
+      path: /var/run/docker.sock
 # ---
 # kind: pipeline
 # name: publish
