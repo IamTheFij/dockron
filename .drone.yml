@@ -128,3 +128,8 @@ volumes:
 #       password:
 #         from_secret: SMTP_PASS  # pragma: whitelist secret
 #       from: drone@iamthefij.com
+---
+kind: signature
+hmac: 1823edf861345f607810aba849580e6b5a24ee5248d44d1b1fa63adccf05c6ee
+
+...
