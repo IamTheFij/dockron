@@ -2,7 +2,7 @@ OUTPUT ?= dockron
 DOCKER_TAG ?= $(OUTPUT)-dev-$(USER)
 GIT_TAG_NAME := $(shell git tag -l --contains HEAD)
 GIT_SHA := $(shell git rev-parse HEAD)
-VERSION := $(if $(GIT_TAG_NAME),$(GIT_TAG_NAME),$(GIT_SHA))
+VERSION ?= $(if $(GIT_TAG_NAME),$(GIT_TAG_NAME),$(GIT_SHA))
 
 GOFILES = *.go go.mod go.sum
 
