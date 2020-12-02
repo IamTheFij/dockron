@@ -17,20 +17,18 @@ steps:
   #     - make check
 
   - name: itest
-    image: docker/compose
+    image: golang:1.15
     volumes:
-      - name: dockersock
-        path: /var/run/docker.sock
-    environment:
-      VERSION: ${DRONE_TAG:-${DRONE_COMMIT}}
+      - name: itest_out
+        path: /out
     commands:
-      - apk add make bash
-      - make itest
+      - echo "start" > /out/start_result.txt
+      - echo "start" > /out/exec_result.txt
+      - timeout 70 go run . -watch 10s -debug
 
 volumes:
-  - name: dockersock
-    host:
-      path: /var/run/docker.sock
+  - name: itest_out
+    temp: {}
 # ---
 # kind: pipeline
 # name: publish
