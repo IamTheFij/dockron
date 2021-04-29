@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
+	"git.iamthefij.com/iamthefij/slog"
 	dockerTypes "github.com/docker/docker/api/types"
 	dockerClient "github.com/docker/docker/client"
-	"github.com/iamthefij/dockron/slog"
 	"github.com/robfig/cron/v3"
 	"golang.org/x/net/context"
 )
@@ -60,17 +60,17 @@ type ContainerStartJob struct {
 // Run is executed based on the ContainerStartJob Schedule and starts the
 // container
 func (job ContainerStartJob) Run() {
-	slog.Info("Starting: %s", job.name)
+	slog.Infof("Starting: %s", job.name)
 
 	// Check if container is already running
 	containerJSON, err := job.client.ContainerInspect(
 		job.context,
 		job.containerID,
 	)
-	slog.PanicOnErr(err, "Could not get container details for job %s", job.name)
+	slog.OnErrPanicf(err, "Could not get container details for job %s", job.name)
 
 	if containerJSON.State.Running {
-		slog.Warning("Container is already running. Skipping %s", job.name)
+		slog.Warningf("Container is already running. Skipping %s", job.name)
 		return
 	}
 
@@ -80,24 +80,24 @@ func (job ContainerStartJob) Run() {
 		job.containerID,
 		dockerTypes.ContainerStartOptions{},
 	)
-	slog.PanicOnErr(err, "Could not start container for job %s", job.name)
+	slog.OnErrPanicf(err, "Could not start container for job %s", job.name)
 
 	// Check results of job
 	for check := true; check; check = containerJSON.State.Running {
-		slog.Debug("Still running %s", job.name)
+		slog.Debugf("Still running %s", job.name)
 
 		containerJSON, err = job.client.ContainerInspect(
 			job.context,
 			job.containerID,
 		)
-		slog.PanicOnErr(err, "Could not get container details for job %s", job.name)
+		slog.OnErrPanicf(err, "Could not get container details for job %s", job.name)
 
 		time.Sleep(1 * time.Second)
 	}
-	slog.Debug("Done execing %s. %+v", job.name, containerJSON.State)
+	slog.Debugf("Done execing %s. %+v", job.name, containerJSON.State)
 	// Log exit code if failed
 	if containerJSON.State.ExitCode != 0 {
-		slog.Error(
+		slog.Errorf(
 			"Exec job %s existed with code %d",
 			job.name,
 			containerJSON.State.ExitCode,
@@ -132,15 +132,15 @@ type ContainerExecJob struct {
 // Run is executed based on the ContainerStartJob Schedule and starts the
 // container
 func (job ContainerExecJob) Run() {
-	slog.Info("Execing: %s", job.name)
+	slog.Infof("Execing: %s", job.name)
 	containerJSON, err := job.client.ContainerInspect(
 		job.context,
 		job.containerID,
 	)
-	slog.PanicOnErr(err, "Could not get container details for job %s", job.name)
+	slog.OnErrPanicf(err, "Could not get container details for job %s", job.name)
 
 	if !containerJSON.State.Running {
-		slog.Warning("Container not running. Skipping %s", job.name)
+		slog.Warningf("Container not running. Skipping %s", job.name)
 		return
 	}
 
@@ -151,48 +151,48 @@ func (job ContainerExecJob) Run() {
 			Cmd: []string{"sh", "-c", strings.TrimSpace(job.shellCommand)},
 		},
 	)
-	slog.PanicOnErr(err, "Could not create container exec job for %s", job.name)
+	slog.OnErrPanicf(err, "Could not create container exec job for %s", job.name)
 
 	err = job.client.ContainerExecStart(
 		job.context,
 		execID.ID,
 		dockerTypes.ExecStartCheck{},
 	)
-	slog.PanicOnErr(err, "Could not start container exec job for %s", job.name)
+	slog.OnErrPanicf(err, "Could not start container exec job for %s", job.name)
 
 	// Wait for job results
 	execInfo := dockerTypes.ContainerExecInspect{Running: true}
 	for execInfo.Running {
-		slog.Debug("Still execing %s", job.name)
+		slog.Debugf("Still execing %s", job.name)
 		execInfo, err = job.client.ContainerExecInspect(
 			job.context,
 			execID.ID,
 		)
-		slog.Debug("Exec info: %+v", execInfo)
+		slog.Debugf("Exec info: %+v", execInfo)
 		if err != nil {
 			// Nothing we can do if we got an error here, so let's go
-			slog.WarnOnErr(err, "Could not get status for exec job %s", job.name)
+			slog.OnErrWarnf(err, "Could not get status for exec job %s", job.name)
 			return
 		}
 		time.Sleep(1 * time.Second)
 	}
-	slog.Debug("Done execing %s. %+v", job.name, execInfo)
+	slog.Debugf("Done execing %s. %+v", job.name, execInfo)
 	// Log exit code if failed
 	if execInfo.ExitCode != 0 {
-		slog.Error("Exec job %s existed with code %d", job.name, execInfo.ExitCode)
+		slog.Errorf("Exec job %s existed with code %d", job.name, execInfo.ExitCode)
 	}
 }
 
 // QueryScheduledJobs queries Docker for all containers with a schedule and
 // returns a list of ContainerCronJob records to be scheduled
 func QueryScheduledJobs(client ContainerClient) (jobs []ContainerCronJob) {
-	slog.Debug("Scanning containers for new schedules...")
+	slog.Debugf("Scanning containers for new schedules...")
 
 	containers, err := client.ContainerList(
 		context.Background(),
 		dockerTypes.ContainerListOptions{All: true},
 	)
-	slog.PanicOnErr(err, "Failure querying docker containers")
+	slog.OnErrPanicf(err, "Failure querying docker containers")
 
 	for _, container := range containers {
 		// Add start job
@@ -264,7 +264,7 @@ func ScheduleJobs(c *cron.Cron, jobs []ContainerCronJob) {
 		if _, ok := existingJobs[job.UniqueName()]; ok {
 			// Job already exists, remove it from existing jobs so we don't
 			// unschedule it later
-			slog.Debug("Job %s is already scheduled. Skipping", job.Name())
+			slog.Debugf("Job %s is already scheduled. Skipping", job.Name())
 			delete(existingJobs, job.UniqueName())
 			continue
 		}
@@ -272,7 +272,7 @@ func ScheduleJobs(c *cron.Cron, jobs []ContainerCronJob) {
 		// Job doesn't exist yet, schedule it
 		_, err := c.AddJob(job.Schedule(), job)
 		if err == nil {
-			slog.Info(
+			slog.Infof(
 				"Scheduled %s (%s) with schedule '%s'\n",
 				job.Name(),
 				job.UniqueName(),
@@ -280,7 +280,7 @@ func ScheduleJobs(c *cron.Cron, jobs []ContainerCronJob) {
 			)
 		} else {
 			// TODO: Track something for a healthcheck here
-			slog.Error(
+			slog.Errorf(
 				"Could not schedule %s (%s) with schedule '%s'. %v\n",
 				job.Name(),
 				job.UniqueName(),
