@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"reflect"
@@ -29,6 +30,8 @@ var (
 			},
 		},
 	}
+
+	errGeneric = errors.New("error")
 )
 
 // FakeCall represents a faked method call
@@ -75,6 +78,7 @@ func (fakeClient *FakeDockerClient) ContainerStart(context context.Context, cont
 	if results[0] != nil {
 		e = results[0].(error)
 	}
+
 	return
 }
 
@@ -83,9 +87,11 @@ func (fakeClient *FakeDockerClient) ContainerList(context context.Context, optio
 	if results[0] != nil {
 		c = results[0].([]dockerTypes.Container)
 	}
+
 	if results[1] != nil {
 		e = results[1].(error)
 	}
+
 	return
 }
 
@@ -94,9 +100,11 @@ func (fakeClient *FakeDockerClient) ContainerExecCreate(ctx context.Context, con
 	if results[0] != nil {
 		r = results[0].(dockerTypes.IDResponse)
 	}
+
 	if results[1] != nil {
 		e = results[1].(error)
 	}
+
 	return
 }
 
@@ -105,6 +113,7 @@ func (fakeClient *FakeDockerClient) ContainerExecStart(ctx context.Context, exec
 	if results[0] != nil {
 		e = results[0].(error)
 	}
+
 	return
 }
 
@@ -113,9 +122,11 @@ func (fakeClient *FakeDockerClient) ContainerExecInspect(ctx context.Context, ex
 	if results[0] != nil {
 		r = results[0].(dockerTypes.ContainerExecInspect)
 	}
+
 	if results[1] != nil {
 		e = results[1].(error)
 	}
+
 	return
 }
 
@@ -124,9 +135,11 @@ func (fakeClient *FakeDockerClient) ContainerInspect(ctx context.Context, contai
 	if results[0] != nil {
 		r = results[0].(dockerTypes.ContainerJSON)
 	}
+
 	if results[1] != nil {
 		e = results[1].(error)
 	}
+
 	return
 }
 
@@ -653,8 +666,8 @@ func TestDoLoop(t *testing.T) {
 // to a subpackage that offers a single function for interfacing with the
 // Docker client to start or exec a container so that Dockron needn't care.
 func TestRunExecJobs(t *testing.T) {
-
 	var jobContext context.Context
+
 	jobContainerID := "container_id"
 	jobCommand := "true"
 
@@ -669,7 +682,7 @@ func TestRunExecJobs(t *testing.T) {
 			client: &FakeDockerClient{
 				FakeResults: map[string][]FakeResult{
 					"ContainerInspect": []FakeResult{
-						FakeResult{nil, fmt.Errorf("error")},
+						FakeResult{nil, errGeneric},
 					},
 				},
 			},
@@ -703,7 +716,7 @@ func TestRunExecJobs(t *testing.T) {
 						FakeResult{runningContainerInfo, nil},
 					},
 					"ContainerExecCreate": []FakeResult{
-						FakeResult{nil, fmt.Errorf("fail")},
+						FakeResult{nil, errGeneric},
 					},
 				},
 			},
@@ -734,7 +747,7 @@ func TestRunExecJobs(t *testing.T) {
 						FakeResult{dockerTypes.IDResponse{ID: "id"}, nil},
 					},
 					"ContainerExecStart": []FakeResult{
-						FakeResult{fmt.Errorf("fail")},
+						FakeResult{errGeneric},
 					},
 				},
 			},
@@ -771,7 +784,7 @@ func TestRunExecJobs(t *testing.T) {
 						FakeResult{nil},
 					},
 					"ContainerExecInspect": []FakeResult{
-						FakeResult{nil, fmt.Errorf("fail")},
+						FakeResult{nil, errGeneric},
 					},
 				},
 			},
@@ -877,6 +890,7 @@ func TestRunExecJobs(t *testing.T) {
 // Docker client to start or exec a container so that Dockron needn't care.
 func TestRunStartJobs(t *testing.T) {
 	var jobContext context.Context
+
 	jobContainerID := "container_id"
 
 	cases := []struct {
@@ -890,7 +904,7 @@ func TestRunStartJobs(t *testing.T) {
 			client: &FakeDockerClient{
 				FakeResults: map[string][]FakeResult{
 					"ContainerInspect": []FakeResult{
-						FakeResult{nil, fmt.Errorf("error")},
+						FakeResult{nil, errGeneric},
 					},
 				},
 			},
@@ -923,7 +937,7 @@ func TestRunStartJobs(t *testing.T) {
 					"ContainerInspect": []FakeResult{
 						FakeResult{stoppedContainerInfo, nil},
 					},
-					"ContainerStart": []FakeResult{FakeResult{fmt.Errorf("fail")}},
+					"ContainerStart": []FakeResult{FakeResult{errGeneric}},
 				},
 			},
 			expectedCalls: map[string][]FakeCall{
@@ -936,7 +950,7 @@ func TestRunStartJobs(t *testing.T) {
 			},
 		},
 		{
-			name: "Succesfully start a container",
+			name: "Successfully start a container",
 			client: &FakeDockerClient{
 				FakeResults: map[string][]FakeResult{
 					"ContainerInspect": []FakeResult{
@@ -974,14 +988,13 @@ func TestRunStartJobs(t *testing.T) {
 
 			defer func() {
 				// Recover from panics, if there were any
-				recover()
+				_ = recover()
 				c.client.AssertFakeCalls(t, c.expectedCalls, "Failed")
 			}()
 			job.Run()
 			if c.expectPanic {
 				t.Errorf("Expected panic but got none")
 			}
-
 		})
 	}
 }

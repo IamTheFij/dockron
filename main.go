@@ -71,6 +71,7 @@ func (job ContainerStartJob) Run() {
 
 	if containerJSON.State.Running {
 		slog.Warningf("Container is already running. Skipping %s", job.name)
+
 		return
 	}
 
@@ -103,7 +104,6 @@ func (job ContainerStartJob) Run() {
 			containerJSON.State.ExitCode,
 		)
 	}
-
 }
 
 // Name returns the name of the job
@@ -141,6 +141,7 @@ func (job ContainerExecJob) Run() {
 
 	if !containerJSON.State.Running {
 		slog.Warningf("Container not running. Skipping %s", job.name)
+
 		return
 	}
 
@@ -169,11 +170,14 @@ func (job ContainerExecJob) Run() {
 			execID.ID,
 		)
 		slog.Debugf("Exec info: %+v", execInfo)
+
 		if err != nil {
 			// Nothing we can do if we got an error here, so let's go
 			slog.OnErrWarnf(err, "Could not get status for exec job %s", job.name)
+
 			return
 		}
+
 		time.Sleep(1 * time.Second)
 	}
 	slog.Debugf("Done execing %s. %+v", job.name, execInfo)
@@ -198,6 +202,7 @@ func QueryScheduledJobs(client ContainerClient) (jobs []ContainerCronJob) {
 		// Add start job
 		if val, ok := container.Labels[schedLabel]; ok {
 			jobName := strings.Join(container.Names, "/")
+
 			jobs = append(jobs, ContainerStartJob{
 				client:      client,
 				containerID: container.ID,
@@ -209,9 +214,12 @@ func QueryScheduledJobs(client ContainerClient) (jobs []ContainerCronJob) {
 
 		// Add exec jobs
 		execJobs := map[string]map[string]string{}
+
 		for label, value := range container.Labels {
 			results := execLabelRegexp.FindStringSubmatch(label)
-			if len(results) == 3 {
+			expectedLabelParts := 3
+
+			if len(results) == expectedLabelParts {
 				// We've got part of a new job
 				jobName, jobField := results[1], results[2]
 				if partJob, ok := execJobs[jobName]; ok {
@@ -225,15 +233,18 @@ func QueryScheduledJobs(client ContainerClient) (jobs []ContainerCronJob) {
 				}
 			}
 		}
+
 		for jobName, jobConfig := range execJobs {
 			schedule, ok := jobConfig["schedule"]
 			if !ok {
 				continue
 			}
+
 			shellCommand, ok := jobConfig["command"]
 			if !ok {
 				continue
 			}
+
 			jobs = append(jobs, ContainerExecJob{
 				ContainerStartJob: ContainerStartJob{
 					client:      client,
@@ -247,7 +258,7 @@ func QueryScheduledJobs(client ContainerClient) (jobs []ContainerCronJob) {
 		}
 	}
 
-	return
+	return jobs
 }
 
 // ScheduleJobs accepts a Cron instance and a list of jobs to schedule.
@@ -266,6 +277,7 @@ func ScheduleJobs(c *cron.Cron, jobs []ContainerCronJob) {
 			// unschedule it later
 			slog.Debugf("Job %s is already scheduled. Skipping", job.Name())
 			delete(existingJobs, job.UniqueName())
+
 			continue
 		}
 
@@ -299,14 +311,14 @@ func ScheduleJobs(c *cron.Cron, jobs []ContainerCronJob) {
 func main() {
 	// Get a Docker Client
 	client, err := dockerClient.NewClientWithOpts(dockerClient.FromEnv)
-	if err != nil {
-		panic(err)
-	}
+	slog.OnErrPanicf(err, "Could not create Docker client")
 
 	// Read interval for polling Docker
 	var watchInterval time.Duration
+
+	showVersion := flag.Bool("version", false, "Display the version of dockron and exit")
+
 	flag.DurationVar(&watchInterval, "watch", defaultWatchInterval, "Interval used to poll Docker for changes")
-	var showVersion = flag.Bool("version", false, "Display the version of dockron and exit")
 	flag.BoolVar(&slog.DebugLevel, "debug", false, "Show debug logs")
 	flag.Parse()
 
