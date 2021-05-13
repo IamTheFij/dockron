@@ -9,12 +9,7 @@ steps:
       - make test
 
   - name: check
-    image: python:3
-    commands:
-      - pip install docker-compose pre-commit
-      - wget -L -O /usr/bin/hadolint https://github.com/hadolint/hadolint/releases/download/v1.18.0/hadolint-Linux-x86_64
-      - chmod +x /usr/bin/hadolint
-      - make check
+    image: iamthefij/drone-pre-commit:personal
 
   # - name: itest
   #   image: docker/compose:alpine-1.26.2
