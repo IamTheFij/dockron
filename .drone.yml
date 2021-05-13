@@ -10,6 +10,8 @@ steps:
 
   - name: check
     image: iamthefij/drone-pre-commit:personal
+    environment:
+      SKIP: docker-compose-check
 
   # - name: itest
   #   image: docker/compose:alpine-1.26.2
