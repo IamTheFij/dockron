@@ -99,7 +99,7 @@ func (job ContainerStartJob) Run() {
 	// Log exit code if failed
 	if containerJSON.State.ExitCode != 0 {
 		slog.Errorf(
-			"Exec job %s existed with code %d",
+			"Exec job %s exited with code %d",
 			job.name,
 			containerJSON.State.ExitCode,
 		)
