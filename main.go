@@ -10,6 +10,7 @@ import (
 
 	"git.iamthefij.com/iamthefij/slog"
 	dockerTypes "github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	dockerClient "github.com/docker/docker/client"
 	"github.com/robfig/cron/v3"
 	"golang.org/x/net/context"
@@ -30,12 +31,12 @@ var (
 
 // ContainerClient provides an interface for interracting with Docker
 type ContainerClient interface {
-	ContainerExecCreate(ctx context.Context, container string, config dockerTypes.ExecConfig) (dockerTypes.IDResponse, error)
-	ContainerExecInspect(ctx context.Context, execID string) (dockerTypes.ContainerExecInspect, error)
-	ContainerExecStart(ctx context.Context, execID string, config dockerTypes.ExecStartCheck) error
+	ContainerExecCreate(ctx context.Context, container string, config container.ExecOptions) (dockerTypes.IDResponse, error)
+	ContainerExecInspect(ctx context.Context, execID string) (container.ExecInspect, error)
+	ContainerExecStart(ctx context.Context, execID string, config container.ExecStartOptions) error
 	ContainerInspect(ctx context.Context, containerID string) (dockerTypes.ContainerJSON, error)
-	ContainerList(context context.Context, options dockerTypes.ContainerListOptions) ([]dockerTypes.Container, error)
-	ContainerStart(context context.Context, containerID string, options dockerTypes.ContainerStartOptions) error
+	ContainerList(context context.Context, options container.ListOptions) ([]dockerTypes.Container, error)
+	ContainerStart(context context.Context, containerID string, options container.StartOptions) error
 }
 
 // ContainerCronJob is an interface of a job to run on containers
@@ -79,7 +80,7 @@ func (job ContainerStartJob) Run() {
 	err = job.client.ContainerStart(
 		job.context,
 		job.containerID,
-		dockerTypes.ContainerStartOptions{},
+		container.StartOptions{},
 	)
 	slog.OnErrPanicf(err, "Could not start container for job %s", job.name)
 
@@ -96,6 +97,7 @@ func (job ContainerStartJob) Run() {
 		time.Sleep(1 * time.Second)
 	}
 	slog.Debugf("Done execing %s. %+v", job.name, containerJSON.State)
+
 	// Log exit code if failed
 	if containerJSON.State.ExitCode != 0 {
 		slog.Errorf(
@@ -148,7 +150,7 @@ func (job ContainerExecJob) Run() {
 	execID, err := job.client.ContainerExecCreate(
 		job.context,
 		job.containerID,
-		dockerTypes.ExecConfig{
+		container.ExecOptions{
 			Cmd: []string{"sh", "-c", strings.TrimSpace(job.shellCommand)},
 		},
 	)
@@ -157,12 +159,12 @@ func (job ContainerExecJob) Run() {
 	err = job.client.ContainerExecStart(
 		job.context,
 		execID.ID,
-		dockerTypes.ExecStartCheck{},
+		container.ExecStartOptions{},
 	)
 	slog.OnErrPanicf(err, "Could not start container exec job for %s", job.name)
 
 	// Wait for job results
-	execInfo := dockerTypes.ContainerExecInspect{Running: true}
+	execInfo := container.ExecInspect{Running: true}
 	for execInfo.Running {
 		slog.Debugf("Still execing %s", job.name)
 		execInfo, err = job.client.ContainerExecInspect(
@@ -194,7 +196,7 @@ func QueryScheduledJobs(client ContainerClient) (jobs []ContainerCronJob) {
 
 	containers, err := client.ContainerList(
 		context.Background(),
-		dockerTypes.ContainerListOptions{All: true},
+		container.ListOptions{All: true},
 	)
 	slog.OnErrPanicf(err, "Failure querying docker containers")
 
