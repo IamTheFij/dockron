@@ -24,6 +24,16 @@ From either an `amd64`, `arm`, or `arm64` machine, you can run Dockron using:
 
     docker run -v /var/run/docker.sock:/var/run/docker.sock:ro iamthefij/dockron -watch
 
+### Getting a Docker API Version error?
+
+You might see something like the following error when Dockron connects to the Docker API
+
+```
+Error response from daemon: client version 1.47 is too new. Maximum supported API version is 1.45
+```
+
+This is because the API client library is newer than the version of the Docker API on your host. You can tell the Dockron API Client to use a compatible version by specifying `DOCKER_API_VERSION=1.45`, where the version you specify matches the API version shown when you run `docker version`. If you are running Dockron in Docker, make sure you add this to your compose environment or otherwise pass it to the container.
+
 ### Scheduling a container
 
 First, be sure your container is something that is not long running and will actually exit when complete. This is for batch runs and not keeping a service running. Docker should be able to do that on it's own with a restart policy.
