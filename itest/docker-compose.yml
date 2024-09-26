@@ -27,4 +27,4 @@ services:
     labels:
       # Execute every minute
       - 'dockron.test.schedule=* * * * *'
-      - 'dockron.test.command=echo ok >> /result.txt'
+      - 'dockron.test.command=echo ok | tee /result.txt && echo "Yay!"'

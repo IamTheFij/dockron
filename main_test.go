@@ -144,6 +144,10 @@ func (fakeClient *FakeDockerClient) ContainerInspect(ctx context.Context, contai
 	return
 }
 
+func (fakeClient *FakeDockerClient) ContainerExecAttach(ctx context.Context, execID string, options container.ExecAttachOptions) (dockerTypes.HijackedResponse, error) {
+	return dockerTypes.HijackedResponse{}, nil
+}
+
 // NewFakeDockerClient creates an empty client
 func NewFakeDockerClient() *FakeDockerClient {
 	return &FakeDockerClient{
@@ -730,7 +734,9 @@ func TestRunExecJobs(t *testing.T) {
 						jobContext,
 						jobContainerID,
 						container.ExecOptions{
-							Cmd: []string{"sh", "-c", jobCommand},
+							AttachStdout: true,
+							AttachStderr: true,
+							Cmd:          []string{"sh", "-c", jobCommand},
 						},
 					},
 				},
@@ -761,7 +767,9 @@ func TestRunExecJobs(t *testing.T) {
 						jobContext,
 						jobContainerID,
 						container.ExecOptions{
-							Cmd: []string{"sh", "-c", jobCommand},
+							AttachStdout: true,
+							AttachStderr: true,
+							Cmd:          []string{"sh", "-c", jobCommand},
 						},
 					},
 				},
@@ -798,7 +806,9 @@ func TestRunExecJobs(t *testing.T) {
 						jobContext,
 						jobContainerID,
 						container.ExecOptions{
-							Cmd: []string{"sh", "-c", jobCommand},
+							AttachStdout: true,
+							AttachStderr: true,
+							Cmd:          []string{"sh", "-c", jobCommand},
 						},
 					},
 				},
@@ -838,7 +848,9 @@ func TestRunExecJobs(t *testing.T) {
 						jobContext,
 						jobContainerID,
 						container.ExecOptions{
-							Cmd: []string{"sh", "-c", jobCommand},
+							AttachStdout: true,
+							AttachStderr: true,
+							Cmd:          []string{"sh", "-c", jobCommand},
 						},
 					},
 				},

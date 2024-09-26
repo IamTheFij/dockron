@@ -30,9 +30,18 @@ function main() {
     echo "Stopping containers"
     docker compose stop
 
+    # Print logs
+    docker compose logs
+
     # Validate result shows minimum amount of executions
     check_results ./start_result.txt 2
     check_results ./exec_result.txt 1
+
+    # Check for exec output
+    if ! (docker compose logs | grep -q "Yay!"); then
+        echo "Exec output 'Yay!' not found"
+        exit 1
+    fi
 }
 
 main

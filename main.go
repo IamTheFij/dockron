@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
 	"os"
@@ -29,11 +30,12 @@ var (
 	version = "dev"
 )
 
-// ContainerClient provides an interface for interracting with Docker
+// ContainerClient provides an interface for interracting with Docker. Makes it possible to mock in tests
 type ContainerClient interface {
 	ContainerExecCreate(ctx context.Context, container string, config container.ExecOptions) (dockerTypes.IDResponse, error)
 	ContainerExecInspect(ctx context.Context, execID string) (container.ExecInspect, error)
 	ContainerExecStart(ctx context.Context, execID string, config container.ExecStartOptions) error
+	ContainerExecAttach(ctx context.Context, execID string, options container.ExecAttachOptions) (dockerTypes.HijackedResponse, error)
 	ContainerInspect(ctx context.Context, containerID string) (dockerTypes.ContainerJSON, error)
 	ContainerList(context context.Context, options container.ListOptions) ([]dockerTypes.Container, error)
 	ContainerStart(context context.Context, containerID string, options container.StartOptions) error
@@ -71,7 +73,7 @@ func (job ContainerStartJob) Run() {
 	slog.OnErrPanicf(err, "Could not get container details for job %s", job.name)
 
 	if containerJSON.State.Running {
-		slog.Warningf("Container is already running. Skipping %s", job.name)
+		slog.Warningf("%s: Container is already running. Skipping start.", job.name)
 
 		return
 	}
@@ -86,7 +88,7 @@ func (job ContainerStartJob) Run() {
 
 	// Check results of job
 	for check := true; check; check = containerJSON.State.Running {
-		slog.Debugf("Still running %s", job.name)
+		slog.Debugf("%s: Still running", job.name)
 
 		containerJSON, err = job.client.ContainerInspect(
 			job.context,
@@ -96,12 +98,12 @@ func (job ContainerStartJob) Run() {
 
 		time.Sleep(1 * time.Second)
 	}
-	slog.Debugf("Done execing %s. %+v", job.name, containerJSON.State)
+	slog.Debugf("%s: Done running. %+v", job.name, containerJSON.State)
 
 	// Log exit code if failed
 	if containerJSON.State.ExitCode != 0 {
 		slog.Errorf(
-			"Exec job %s exited with code %d",
+			"%s: Exec job exited with code %d",
 			job.name,
 			containerJSON.State.ExitCode,
 		)
@@ -142,7 +144,7 @@ func (job ContainerExecJob) Run() {
 	slog.OnErrPanicf(err, "Could not get container details for job %s", job.name)
 
 	if !containerJSON.State.Running {
-		slog.Warningf("Container not running. Skipping %s", job.name)
+		slog.Warningf("%s: Container not running. Skipping exec.", job.name)
 
 		return
 	}
@@ -151,10 +153,18 @@ func (job ContainerExecJob) Run() {
 		job.context,
 		job.containerID,
 		container.ExecOptions{
-			Cmd: []string{"sh", "-c", strings.TrimSpace(job.shellCommand)},
+			AttachStdout: true,
+			AttachStderr: true,
+			Cmd:          []string{"sh", "-c", strings.TrimSpace(job.shellCommand)},
 		},
 	)
 	slog.OnErrPanicf(err, "Could not create container exec job for %s", job.name)
+
+	hj, err := job.client.ContainerExecAttach(job.context, execID.ID, container.ExecAttachOptions{})
+	slog.OnErrWarnf(err, "%s: Error attaching to exec: %s", job.name, err)
+	defer hj.Close()
+
+	scanner := bufio.NewScanner(hj.Reader)
 
 	err = job.client.ContainerExecStart(
 		job.context,
@@ -166,26 +176,48 @@ func (job ContainerExecJob) Run() {
 	// Wait for job results
 	execInfo := container.ExecInspect{Running: true}
 	for execInfo.Running {
+		time.Sleep(1 * time.Second)
+
 		slog.Debugf("Still execing %s", job.name)
 		execInfo, err = job.client.ContainerExecInspect(
 			job.context,
 			execID.ID,
 		)
-		slog.Debugf("Exec info: %+v", execInfo)
+
+		// Maybe print output
+		if hj.Reader != nil {
+			slog.Debugf("%s: Getting exec reader", job.name)
+			for scanner.Scan() {
+				slog.Debugf("%s: Getting exec line", job.name)
+
+				line := scanner.Text()
+				if len(line) > 0 {
+					slog.Infof("%s: Exec output: %s", job.name, line)
+				} else {
+					slog.Debugf("%s: Empty exec output", job.name)
+				}
+
+				if err := scanner.Err(); err != nil {
+					slog.OnErrWarnf(err, "%s: Error reading from exec", job.name)
+				}
+			}
+		} else {
+			slog.Debugf("%s: No exec reader", job.name)
+		}
+
+		slog.Debugf("%s: Exec info: %+v", job.name, execInfo)
 
 		if err != nil {
 			// Nothing we can do if we got an error here, so let's go
-			slog.OnErrWarnf(err, "Could not get status for exec job %s", job.name)
+			slog.OnErrWarnf(err, "%s: Could not get status for exec job", job.name)
 
 			return
 		}
-
-		time.Sleep(1 * time.Second)
 	}
-	slog.Debugf("Done execing %s. %+v", job.name, execInfo)
+	slog.Debugf("%s: Done execing. %+v", job.name, execInfo)
 	// Log exit code if failed
 	if execInfo.ExitCode != 0 {
-		slog.Errorf("Exec job %s existed with code %d", job.name, execInfo.ExitCode)
+		slog.Errorf("%s: Exec job existed with code %d", job.name, execInfo.ExitCode)
 	}
 }
 
