@@ -17,16 +17,18 @@ function main() {
     echo "start" > ./exec_result.txt
 
     # Clean old containers
-    docker-compose down || true
+    docker compose down || true
     # Start containers
     echo "Starting containers"
-    docker-compose up -d --build
-    echo "Containers started. Sleeping for 70s to let schedules run"
+    docker compose up -d --build
     # Schedules run on the shortest interval of a minute. This should allow time
     # for the containers to start and execute once
-    sleep 70
+    local seconds=$((65 - $(date +"%S")))
+    echo "Containers started. Sleeping for ${seconds}s to let schedules run"
+    sleep $seconds
+
     echo "Stopping containers"
-    docker-compose stop
+    docker compose stop
 
     # Validate result shows minimum amount of executions
     check_results ./start_result.txt 2
