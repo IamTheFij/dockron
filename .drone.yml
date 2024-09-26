@@ -4,7 +4,7 @@ name: test
 
 steps:
   - name: test
-    image: golang:1.15
+    image: golang:1.22
     commands:
       - make test
 
@@ -38,7 +38,7 @@ trigger:
 
 steps:
   - name: build
-    image: golang:1.15
+    image: golang:1.22
     environment:
       VERSION: ${DRONE_TAG:-${DRONE_COMMIT}}
     commands:
