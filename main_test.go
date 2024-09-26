@@ -51,6 +51,8 @@ type FakeDockerClient struct {
 
 // AssertFakeCalls checks expected against actual calls to fake methods
 func (fakeClient FakeDockerClient) AssertFakeCalls(t *testing.T, expectedCalls map[string][]FakeCall, message string) {
+	t.Helper()
+
 	if !reflect.DeepEqual(fakeClient.FakeCalls, expectedCalls) {
 		t.Errorf(
 			"%s: Expected and actual calls do not match. Expected %+v Actual %+v",
@@ -161,6 +163,8 @@ func NewFakeDockerClient() *FakeDockerClient {
 
 // ErrorUnequal checks that two values are equal and fails the test if not
 func ErrorUnequal(t *testing.T, expected interface{}, actual interface{}, message string) {
+	t.Helper()
+
 	if expected != actual {
 		t.Errorf("%s Expected: %+v Actual: %+v", message, expected, actual)
 	}
@@ -345,6 +349,7 @@ func TestQueryScheduledJobs(t *testing.T) {
 
 			t.Logf("Expected jobs: %+v, Actual jobs: %+v", c.expectedJobs, jobs)
 			ErrorUnequal(t, len(c.expectedJobs), len(jobs), "Job lengths don't match")
+
 			for i, job := range jobs {
 				ErrorUnequal(t, c.expectedJobs[i], job, "Job value does not match")
 			}
@@ -453,6 +458,7 @@ func TestScheduleJobs(t *testing.T) {
 			t.Logf("Cron entries: %+v", scheduledEntries)
 
 			ErrorUnequal(t, len(c.expectedJobs), len(scheduledEntries), "Job and entry lengths don't match")
+
 			for i, entry := range scheduledEntries {
 				ErrorUnequal(t, c.expectedJobs[i], entry.Job, "Job value does not match entry")
 			}
@@ -659,6 +665,7 @@ func TestDoLoop(t *testing.T) {
 			t.Logf("Cron entries: %+v", scheduledEntries)
 
 			ErrorUnequal(t, len(c.expectedJobs), len(scheduledEntries), "Job and entry lengths don't match")
+
 			for i, entry := range scheduledEntries {
 				ErrorUnequal(t, c.expectedJobs[i], entry.Job, "Job value does not match entry")
 			}
@@ -890,9 +897,11 @@ func TestRunExecJobs(t *testing.T) {
 					t.Log("Recovered from panic")
 					t.Log(err)
 				}
+
 				c.client.AssertFakeCalls(t, c.expectedCalls, "Failed")
 			}()
 			job.Run()
+
 			if c.expectPanic {
 				t.Errorf("Expected panic but got none")
 			}
@@ -1006,9 +1015,11 @@ func TestRunStartJobs(t *testing.T) {
 			defer func() {
 				// Recover from panics, if there were any
 				_ = recover()
+
 				c.client.AssertFakeCalls(t, c.expectedCalls, "Failed")
 			}()
 			job.Run()
+
 			if c.expectPanic {
 				t.Errorf("Expected panic but got none")
 			}

@@ -9,6 +9,8 @@ services:
     command: ["-watch", "10s", "-debug"]
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      DOCKER_API_VERSION: 1.45
 
   start_echoer:
     image: busybox:latest
