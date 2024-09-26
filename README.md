@@ -50,7 +50,7 @@ Eg.
         - "dockron.dates.schedule=* * * * *"
         - "dockron.dates.command=date"
 
-_Note: Exec jobs will not log their output anywhere. Not to the host container or to Dockron. It's up to you to deal with this for now. There is also currently no way to health check these._
+_Note: Exec jobs will log their output to Dockron. There is also currently no way to health check these._
 
 ### Cron Expression Formatting
 
