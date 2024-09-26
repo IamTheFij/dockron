@@ -11,6 +11,7 @@ repos:
     rev: v1.52.2
     hooks:
       - id: golangci-lint
+        args: ["--timeout=5m"]
   - repo: https://github.com/IamTheFij/docker-pre-commit
     rev: v3.0.1
     hooks:
