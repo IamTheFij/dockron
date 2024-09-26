@@ -1,11 +1,13 @@
 package main
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"log"
 	"reflect"
 	"sort"
+	"strings"
 	"testing"
 
 	dockerTypes "github.com/docker/docker/api/types"
@@ -145,7 +147,9 @@ func (fakeClient *FakeDockerClient) ContainerInspect(ctx context.Context, contai
 }
 
 func (fakeClient *FakeDockerClient) ContainerExecAttach(ctx context.Context, execID string, options container.ExecAttachOptions) (dockerTypes.HijackedResponse, error) {
-	return dockerTypes.HijackedResponse{}, nil
+	return dockerTypes.HijackedResponse{
+		Reader: bufio.NewReader(strings.NewReader("Some output from our command")),
+	}, nil
 }
 
 // NewFakeDockerClient creates an empty client

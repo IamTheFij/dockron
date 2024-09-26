@@ -186,10 +186,7 @@ func (job ContainerExecJob) Run() {
 
 		// Maybe print output
 		if hj.Reader != nil {
-			slog.Debugf("%s: Getting exec reader", job.name)
 			for scanner.Scan() {
-				slog.Debugf("%s: Getting exec line", job.name)
-
 				line := scanner.Text()
 				if len(line) > 0 {
 					slog.Infof("%s: Exec output: %s", job.name, line)
