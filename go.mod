@@ -6,7 +6,7 @@ toolchain go1.24.13
 
 require (
 	git.iamthefij.com/iamthefij/slog v1.3.0
-	github.com/docker/docker v27.3.1+incompatible
+	github.com/docker/docker v27.5.1+incompatible
 	github.com/robfig/cron/v3 v3.0.1
 	golang.org/x/net v0.50.0
 )
