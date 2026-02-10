@@ -54,7 +54,7 @@ jobs:
       - name: Build binaries
         env:
           VERSION: "${{ github.REF_NAME }}"
-        run: make all
+        run: make build-linux-static
 
       - name: Docker meta
         id: meta
