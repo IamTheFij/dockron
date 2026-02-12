@@ -2,7 +2,7 @@ module github.com/iamthefij/dockron
 
 go 1.24.0
 
-toolchain go1.24.13
+toolchain go1.26.0
 
 require (
 	git.iamthefij.com/iamthefij/slog v1.3.0
