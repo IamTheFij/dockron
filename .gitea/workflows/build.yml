@@ -33,11 +33,17 @@ jobs:
         with:
           go-version-file: go.mod
 
+      - run: |
+          echo "go_version=$(go version)" >> $GITHUB_ENV
+
       - name: Set up Python
         uses: actions/setup-python@v6
 
       - name: Run pre-commit
         uses: https://git.iamthefij.com/iamthefij/pre-commit-action@v3.1.0
+        with:
+          # Cache pre-commit on go version so we get the right golangci-lint
+          additional_cache_key: "${{ env.go_version }}"
 
   release:
     runs-on: ubuntu-latest
