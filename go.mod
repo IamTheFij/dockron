@@ -5,13 +5,15 @@ go 1.26
 require (
 	git.iamthefij.com/iamthefij/slog v1.3.0
 	git.iamthefij.com/iamthefij/slog/v2 v2.0.1
-	github.com/docker/docker v27.5.1+incompatible
+	github.com/docker/docker v28.5.2+incompatible
 	github.com/robfig/cron/v3 v3.0.1
 	golang.org/x/net v0.50.0
 )
 
 require (
 	github.com/Microsoft/go-winio v0.4.14 // indirect
+	github.com/containerd/errdefs v1.0.0 // indirect
+	github.com/containerd/errdefs/pkg v0.3.0 // indirect
 	github.com/containerd/log v0.1.0 // indirect
 	github.com/distribution/reference v0.6.0 // indirect
 	github.com/docker/go-connections v0.5.0 // indirect
