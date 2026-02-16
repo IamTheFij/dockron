@@ -3,7 +3,6 @@ module github.com/iamthefij/dockron
 go 1.26
 
 require (
-	git.iamthefij.com/iamthefij/slog v1.3.0
 	git.iamthefij.com/iamthefij/slog/v2 v2.0.1
 	github.com/docker/docker v28.5.2+incompatible
 	github.com/robfig/cron/v3 v3.0.1
