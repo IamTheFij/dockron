@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"git.iamthefij.com/iamthefij/slog"
+	"git.iamthefij.com/iamthefij/slog/v2"
 	dockerTypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	dockerClient "github.com/docker/docker/client"
