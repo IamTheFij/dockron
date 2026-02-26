@@ -6,7 +6,7 @@ require (
 	git.iamthefij.com/iamthefij/slog/v2 v2.0.1
 	github.com/docker/docker v28.5.2+incompatible
 	github.com/robfig/cron/v3 v3.0.1
-	golang.org/x/net v0.50.0
+	golang.org/x/net v0.51.0
 )
 
 require (
